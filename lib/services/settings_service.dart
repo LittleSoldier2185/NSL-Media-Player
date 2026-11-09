@@ -70,6 +70,43 @@ class AppSettings extends ChangeNotifier {
     r.height.toString(),
   ]);
 
+  // --- General ---
+  bool get rememberWindow => _prefs.getBool('rememberWindow') ?? true;
+
+  // --- Playback ---
+  bool get resume => _prefs.getBool('resume') ?? true;
+  bool get autoNext => _prefs.getBool('autoNext') ?? true;
+
+  /// Volume applied at startup, or null to keep the last used volume.
+  double? get defaultVolume => _prefs.getDouble('defaultVolume');
+  double get defaultSpeed => _prefs.getDouble('defaultSpeed') ?? 1.0;
+  int get seekStep => _prefs.getInt('seekStep') ?? 5;
+
+  // --- Video ---
+  /// 'auto' | 'on' | 'off'
+  String get hwdec => _prefs.getString('hwdec') ?? 'auto';
+
+  // --- Mini player ---
+  bool get miniRememberPos => _prefs.getBool('miniRememberPos') ?? true;
+
+  // --- Library ---
+  bool get keepHistory => _prefs.getBool('keepHistory') ?? true;
+
+  /// Stores [value] under [key] (bool / int / double / String) and notifies.
+  void put(String key, Object value) {
+    switch (value) {
+      case bool v:
+        _prefs.setBool(key, v);
+      case int v:
+        _prefs.setInt(key, v);
+      case double v:
+        _prefs.setDouble(key, v);
+      case String v:
+        _prefs.setString(key, v);
+    }
+    notifyListeners();
+  }
+
   void setAccent(Color c) {
     accent = c;
     _prefs.setInt('accent', c.toARGB32());

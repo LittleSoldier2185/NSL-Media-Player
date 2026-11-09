@@ -15,7 +15,7 @@ import 'home_page.dart';
 import 'mini_player.dart';
 import 'music_view.dart';
 import 'queue_panel.dart';
-import 'settings_dialog.dart';
+import 'settings_page.dart';
 import 'controls.dart';
 import 'theme.dart';
 import 'title_bar.dart';
@@ -42,6 +42,9 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   bool _fullscreen = false;
   bool _dragging = false;
   bool _showQueue = true;
+  bool _settingsOpen = false;
+
+  void _openSettings() => setState(() => _settingsOpen = true);
 
   /// Showing the Home / Dashboard instead of the player.
   late bool _home = !widget.initialArgs.any(isSupportedMedia);
@@ -62,12 +65,24 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     if (_mini) return;
     if (_fullscreen) await _toggleFullscreen(false);
     _fullBounds = await windowManager.getBounds();
+    if (await windowManager.isMaximized()) await windowManager.unmaximize();
+    // Set first so the resize events below are not saved as the full-window size.
     setState(() => _mini = true);
+    // Resize while the window is still resizable: Windows ignores setSize
+    // once resizing is disabled, which left the mini card in a stale layout.
+    await windowManager.setResizable(true);
     await windowManager.setMinimumSize(_miniSize);
+    await windowManager.setMaximumSize(_miniSize);
+    final pos = s.miniRememberPos ? s.miniPosition : null;
+    await windowManager.setBounds(
+      Rect.fromLTWH(
+        pos?.dx ?? _fullBounds!.left,
+        pos?.dy ?? _fullBounds!.top,
+        _miniSize.width,
+        _miniSize.height,
+      ),
+    );
     await windowManager.setResizable(false);
-    await windowManager.setSize(_miniSize);
-    final pos = s.miniPosition;
-    if (pos != null) await windowManager.setPosition(pos);
     await windowManager.setAlwaysOnTop(s.miniOnTop);
     await windowManager.setOpacity(s.miniOpacity / 100);
     // Mini + audio-only is the lightest combination.
@@ -82,6 +97,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     await windowManager.setOpacity(1);
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setResizable(true);
+    await windowManager.setMaximumSize(const Size(100000, 100000));
     await windowManager.setMinimumSize(const Size(640, 420));
     final b = _fullBounds;
     if (b != null) await windowManager.setBounds(b);
@@ -94,9 +110,11 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   Future<void> _saveBounds() async {
     if (_mini) {
-      s.miniPosition = (await windowManager.getBounds()).topLeft;
+      if (s.miniRememberPos)
+        s.miniPosition = (await windowManager.getBounds()).topLeft;
       return;
     }
+    if (!s.rememberWindow) return;
     if (_fullscreen || await windowManager.isMaximized()) return;
     if (await windowManager.isMinimized()) return;
     s.saveWindowBounds(await windowManager.getBounds());
@@ -193,15 +211,17 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
       case 'play':
         c.togglePlay();
       case 'back':
-        c.seekRelative(const Duration(seconds: -5));
+        c.seekRelative(Duration(seconds: -c.seekStep));
       case 'fwd':
-        c.seekRelative(const Duration(seconds: 5));
+        c.seekRelative(Duration(seconds: c.seekStep));
       case 'volup':
         c.changeVolume(5);
       case 'voldown':
         c.changeVolume(-5);
       case 'mute':
         c.toggleMute();
+      case 'audio':
+        c.toggleAudioOnly();
       case 'fs':
         _toggleFullscreen();
       case 'exitfs':
@@ -229,6 +249,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         SingleActivator(LogicalKeyboardKey.arrowDown): _NslIntent('voldown'),
         SingleActivator(LogicalKeyboardKey.keyM): _NslIntent('mute'),
         SingleActivator(LogicalKeyboardKey.keyF): _NslIntent('fs'),
+        SingleActivator(LogicalKeyboardKey.keyA): _NslIntent('audio'),
         SingleActivator(LogicalKeyboardKey.f11): _NslIntent('fs'),
         SingleActivator(LogicalKeyboardKey.escape): _NslIntent('exitfs'),
         SingleActivator(LogicalKeyboardKey.keyM, control: true): _NslIntent(
@@ -297,21 +318,31 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                             listenable: c,
                             builder: (_, _) => NslTitleBar(
                               title: c.title,
-                              onHome: _home
+                              onHome: _home && !_settingsOpen
                                   ? null
-                                  : () => setState(() => _home = true),
+                                  : () => setState(() {
+                                      _home = true;
+                                      _settingsOpen = false;
+                                    }),
                             ),
                           ),
                         Expanded(
-                          child: _home
+                          child: _settingsOpen
+                              ? SettingsPage(
+                                  settings: s,
+                                  controller: c,
+                                  history: widget.history,
+                                  onClose: () =>
+                                      setState(() => _settingsOpen = false),
+                                )
+                              : _home
                               ? HomePage(
                                   controller: c,
                                   history: widget.history,
                                   onOpenFile: _pickFile,
                                   onOpenFolder: _openFolderFromHome,
                                   onMini: _enterMini,
-                                  onSettings: () =>
-                                      showSettings(context, widget.settings),
+                                  onSettings: _openSettings,
                                   onOpenPlayer: () =>
                                       setState(() => _home = false),
                                   onResume: _resume,
@@ -322,10 +353,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                       child: ListenableBuilder(
                                         listenable: c,
                                         builder: (context, _) {
-                                          void openSettings() => showSettings(
-                                            context,
-                                            widget.settings,
-                                          );
+                                          final openSettings = _openSettings;
                                           void toggleQueue() => setState(
                                             () => _showQueue = !_showQueue,
                                           );

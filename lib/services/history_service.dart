@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/media_types.dart';
+import 'settings_service.dart';
 
 class HistoryEntry {
   HistoryEntry({
@@ -49,7 +50,7 @@ class HistoryEntry {
 
 /// Records resume positions, daily watch time and play counts.
 class HistoryService extends ChangeNotifier {
-  HistoryService(this._prefs, this._c) {
+  HistoryService(this._prefs, this._c, [this._settings]) {
     _load();
     _c.addListener(_onController);
     _c.player.stream.playing.listen((v) {
@@ -66,6 +67,8 @@ class HistoryService extends ChangeNotifier {
 
   final SharedPreferences _prefs;
   final NslPlayerController _c;
+  final AppSettings? _settings;
+  bool get _enabled => _settings?.keepHistory ?? true;
 
   final List<HistoryEntry> entries = []; // newest first
   final Map<String, double> daily = {}; // yyyy-MM-dd -> seconds
@@ -114,6 +117,10 @@ class HistoryService extends ChangeNotifier {
   void _onController() {
     final path = _c.currentPath;
     if (path == _path) return;
+    if (!_enabled) {
+      _path = path;
+      return;
+    }
     _persist(); // finalize the previous item
     _path = path;
     _lastPos = null;
@@ -128,6 +135,7 @@ class HistoryService extends ChangeNotifier {
   }
 
   void _onPosition(Duration pos) {
+    if (!_enabled) return;
     _posMs = pos.inMilliseconds;
     final last = _lastPos;
     _lastPos = pos;
@@ -162,7 +170,16 @@ class HistoryService extends ChangeNotifier {
     return e;
   }
 
+  /// Removes all history; files are not touched.
+  void clear() {
+    entries.clear();
+    daily.clear();
+    plays.clear();
+    _save();
+  }
+
   void _persist() {
+    if (!_enabled) return;
     final path = _path;
     if (path != null && _durMs > 0) {
       final e = entries.where((x) => x.path == path).firstOrNull;
@@ -189,8 +206,9 @@ class HistoryService extends ChangeNotifier {
   }
 
   /// Entries to show under "Continue" (existing on disk is not checked here).
-  List<HistoryEntry> get resumable =>
-      entries.where((e) => e.resumable).take(3).toList();
+  List<HistoryEntry> get resumable => (_settings?.resume ?? true)
+      ? entries.where((e) => e.resumable).take(3).toList()
+      : const [];
 
   /// Watch seconds for the last 7 days, oldest first, with their dates.
   List<(DateTime, double)> get lastWeek {

@@ -14,7 +14,7 @@ Future<void> main(List<String> args) async {
   await windowManager.ensureInitialized();
 
   final settings = await AppSettings.load();
-  final saved = settings.windowBounds;
+  final saved = settings.rememberWindow ? settings.windowBounds : null;
   final options = WindowOptions(
     size: saved?.size ?? const Size(1280, 760),
     minimumSize: const Size(640, 420),
@@ -29,7 +29,8 @@ Future<void> main(List<String> args) async {
   });
 
   final controller = NslPlayerController(settings.prefs);
-  final history = HistoryService(settings.prefs, controller);
+  controller.seekStep = settings.seekStep;
+  final history = HistoryService(settings.prefs, controller, settings);
   runApp(
     NslApp(
       controller: controller,
@@ -38,6 +39,28 @@ Future<void> main(List<String> args) async {
       initialArgs: args,
     ),
   );
+  _applyPlayerSettings(controller, settings);
+}
+
+/// Applies saved player options. Runs after the first frame is on screen and
+/// never blocks startup: a failing native call must not leave a blank window.
+Future<void> _applyPlayerSettings(
+  NslPlayerController controller,
+  AppSettings settings,
+) async {
+  Future<void> safe(Future<void> Function() f) async {
+    try {
+      await f();
+    } catch (e, st) {
+      debugPrint('Could not apply a saved player setting: $e\n$st');
+    }
+  }
+
+  final vol = settings.defaultVolume;
+  if (vol != null) await safe(() => controller.setVolume(vol));
+  await safe(() => controller.setSpeed(settings.defaultSpeed));
+  await safe(() => controller.setHwdec(settings.hwdec));
+  await safe(() => controller.setAutoNext(settings.autoNext));
 }
 
 class NslApp extends StatelessWidget {

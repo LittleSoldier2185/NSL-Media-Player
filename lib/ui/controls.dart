@@ -67,11 +67,15 @@ class ControlsBar extends StatelessWidget {
               IconBtn(Icons.skip_next, controller.next, tooltip: 'Next (N)'),
               IconBtn(
                 Icons.replay_5,
-                () => controller.seekRelative(const Duration(seconds: -5)),
+                () => controller.seekRelative(
+                  Duration(seconds: -controller.seekStep),
+                ),
               ),
               IconBtn(
                 Icons.forward_5,
-                () => controller.seekRelative(const Duration(seconds: 5)),
+                () => controller.seekRelative(
+                  Duration(seconds: controller.seekStep),
+                ),
               ),
               const SizedBox(width: 12),
               StreamBuilder<double>(

@@ -59,6 +59,9 @@ class NslPlayerController extends ChangeNotifier {
   bool audioOnly = false;
 
   double _lastVolume = 100;
+
+  /// Seconds jumped by the seek shortcuts / buttons.
+  int seekStep = 5;
   int _speedIndex = 2;
 
   /// Chosen max height in px; 0 = Original.
@@ -227,6 +230,30 @@ class NslPlayerController extends ChangeNotifier {
       target < Duration.zero ? Duration.zero : (target > max ? max : target),
     );
   }
+
+  Future<void> setSpeed(double v) async {
+    final i = speeds.indexOf(v);
+    if (i < 0) return;
+    _speedIndex = i;
+    await player.setRate(v);
+    notifyListeners();
+  }
+
+  Future<void> _setMpv(String name, String value) async {
+    final platform = player.platform;
+    if (platform is NativePlayer) await platform.setProperty(name, value);
+  }
+
+  /// Hardware decoding: 'auto' | 'on' | 'off'.
+  Future<void> setHwdec(String mode) => _setMpv('hwdec', switch (mode) {
+    'on' => 'auto',
+    'off' => 'no',
+    _ => 'auto-safe',
+  });
+
+  /// When false, playback pauses at the end of each file instead of moving on.
+  Future<void> setAutoNext(bool on) =>
+      _setMpv('keep-open', on ? 'no' : 'always');
 
   Future<void> setVolume(double v) => player.setVolume(v.clamp(0, 100));
 
