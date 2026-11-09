@@ -1,0 +1,125 @@
+# NSL Media Player — Plan
+
+## 1. ภาพรวม
+โปรแกรมเล่นไฟล์เสียงและวิดีโอสำหรับ **Windows (PC)** สร้างด้วย **Flutter Desktop**
+เป้าหมายหลัก: เล่นได้ทั้งเสียงและวิดีโอในแอปเดียว และตั้งเป็นแอปเริ่มต้น (default) สำหรับเปิดไฟล์มีเดียได้
+
+## 2. ขอบเขต
+**อยู่ในแผน**
+- เล่นไฟล์เสียงและวิดีโอ
+- รองรับลากไฟล์มาวาง และเปิดผ่าน "Open with" ของ Windows
+- ลงทะเบียนเป็นตัวเลือก Default app ผ่าน installer
+
+**ยังไม่ทำ (ภายหลัง)**
+- Android / มือถือ
+- เขียน decoder เอง (ใช้ libmpv ผ่าน media_kit แทน)
+- Equalizer, visualizer, cast, streaming หลายโปรโตคอล
+
+## 3. Tech Stack
+| ส่วน | Package / เครื่องมือ |
+|---|---|
+| ตัวเล่นหลัก | `media_kit`, `media_kit_video`, `media_kit_libs_windows_video` |
+| เลือกไฟล์/โฟลเดอร์ | `file_picker` |
+| ลากไฟล์มาวาง | `desktop_drop` |
+| จัดการหน้าต่าง (fullscreen, opacity ฯลฯ) | `window_manager` |
+| เอฟเฟกต์โปร่งแสง (ทางเลือก) | `flutter_acrylic` |
+| เก็บ playlist / ตำแหน่งที่ดูค้าง | `shared_preferences` หรือ `drift` (SQLite) |
+| อ่าน metadata / ปกอัลบั้ม | `audio_metadata_reader` หรือ `metadata_god` |
+| Media keys + SMTC ของ Windows | `smtc_windows` |
+| เปิดหน้า Default apps | `url_launcher` (`ms-settings:defaultapps`) |
+| Installer | Inno Setup (แนะนำ) หรือ MSIX |
+
+## 4. โครงสร้างโปรเจกต์ (เสนอ)
+```
+lib/
+  main.dart            // รับ args จาก command line
+  player_controller/   // logic ควบคุมการเล่น (play, seek, queue)
+  services/            // file association, settings, metadata, SMTC
+  ui/                  // หน้าจอ: โหมดเพลง / โหมดวิดีโอ / playlist
+installer/
+  nsl_media_player.iss // สคริปต์ Inno Setup
+```
+
+## 5. Roadmap
+
+### Milestone 1 — MVP เล่นไฟล์เดียว
+- [ ] สร้างโปรเจกต์ Flutter Windows ชื่อ NSL Media Player
+- [ ] เล่นไฟล์เสียง/วิดีโอด้วย media_kit
+- [ ] Controls: play/pause, seek bar, volume, mute, ความเร็วการเล่น
+- [ ] ลากไฟล์มาวาง + รับ path จาก `main(List<String> args)`
+- [ ] ปุ่มลัดคีย์บอร์ด + fullscreen
+
+### Milestone 2 — Playlist และคิวเล่น
+- [ ] Playlist / คิว: ถัดไป, ก่อนหน้า, สุ่ม, วนซ้ำ
+- [ ] เพิ่มหลายไฟล์ / ทั้งโฟลเดอร์เข้าคิว
+- [ ] **โหมด Mixed Playlist**: ผสมไฟล์วิดีโอกับเสียงใน playlist เดียวกันได้
+  - [ ] ตรวจชนิดไฟล์ (เสียง/วิดีโอ) จากนามสกุล หรือจากแทร็กวิดีโอของไฟล์
+  - [ ] สลับ UI อัตโนมัติระหว่างโหมดเพลง (โชว์ปกอัลบั้ม) กับโหมดวิดีโอเมื่อเปลี่ยนไฟล์
+  - [ ] ไอคอนบอกชนิดไฟล์ในรายการ + ตัวกรอง (ทั้งหมด / เสียง / วิดีโอ)
+- [ ] **โหมด Audio-only (ประหยัดทรัพยากร)**: เล่นไฟล์วิดีโอเฉพาะเสียง ไม่ decode ภาพ
+  - [ ] ปิดการ decode วิดีโอที่ตัวเล่น: ตั้ง property ของ mpv `vid=no` ผ่าน `NativePlayer.setProperty` (ลด CPU/GPU จริง ไม่ใช่แค่ซ่อนภาพ)
+  - [ ] ไม่สร้าง `Video` widget ในโหมดนี้ แสดงปก/หน้าจอเพลงแทน
+  - [ ] สลับเปิด/ปิดได้ระหว่างเล่น (ตั้ง `vid=auto` เพื่อกลับมาแสดงภาพที่ตำแหน่งเดิม)
+  - [ ] ตั้งค่าได้ทั้งแบบทั้งแอป และแบบเปิดอัตโนมัติเมื่อหน้าต่างถูกย่อ/ปิดบัง
+  - [ ] ใช้ร่วมกับ Mini player ได้ (mini player + audio-only = เบาที่สุด)
+- [ ] **Video quality (ลดจากต้นฉบับได้ ขยายไม่ได้)**
+  - [ ] ความละเอียดของไฟล์ต้นฉบับเป็นเพดานสูงสุด ไม่มี upscale
+  - [ ] ตัวเลือก: Original / 1080p / 720p / 480p / 360p โดยแสดงเฉพาะค่าที่ต่ำกว่าหรือเท่ากับความสูงของไฟล์ (ไฟล์ 720p จะไม่มีตัวเลือก 1080p)
+  - [ ] ใช้ filter ของ mpv `vf=scale=-2:<ความสูง>` เปลี่ยนได้ระหว่างเล่น
+  - [ ] ปุ่ม Quality ในแถบควบคุมวิดีโอ + ค่าเริ่มต้นใน Settings
+  - [ ] จำค่าที่เลือก และตัวเลือก Auto (ลดอัตโนมัติเมื่อใช้ mini player หรือย่อหน้าต่าง)
+  - หมายเหตุ: ไฟล์ในเครื่องยังถูก decode ที่ความละเอียดเดิม การลดคุณภาพช่วยลดภาระตอนวาดภาพ ถ้าต้องการประหยัดจริงให้ใช้โหมด Audio-only
+- [ ] บันทึก playlist ล่าสุด
+- [ ] จำขนาดหน้าต่างและระดับเสียง
+
+### Milestone 3 — Default App (Windows)
+- [ ] ทำ installer ด้วย Inno Setup
+- [ ] เขียน Registry ลง `HKCU` (ไม่ต้องใช้สิทธิ์ admin)
+  - ProgID + คำสั่งเปิดไฟล์ `"...\nsl_media_player.exe" "%1"`
+  - `OpenWithProgids` ของแต่ละนามสกุล
+  - `Capabilities` + `RegisteredApplications` เพื่อให้ขึ้นใน Settings > Default apps
+- [ ] ปุ่ม "ตั้งเป็นแอปเริ่มต้น" ในแอป → เปิด `ms-settings:defaultapps`
+- [ ] ทดสอบ: ดับเบิลคลิกไฟล์ → เปิดใน NSL Media Player
+
+**นามสกุลที่รองรับ**
+- เสียง: `.mp3 .flac .wav .m4a .ogg .aac`
+- วิดีโอ: `.mp4 .mkv .avi .mov .webm`
+
+> หมายเหตุ: Windows 10/11 ไม่อนุญาตให้โปรแกรมตั้งตัวเองเป็น default อัตโนมัติ ผู้ใช้ต้องเลือกเองในหน้า Default apps
+
+### Milestone 4 — Library และ metadata
+- [ ] สแกนโฟลเดอร์ แยกเพลง / วิดีโอ
+- [ ] อ่านชื่อเพลง ศิลปิน อัลบั้ม และแสดงปก
+- [ ] ค้นหาและจัดเรียง library
+- [ ] จำตำแหน่งที่ดูค้างไว้ (resume)
+- [ ] **หน้า Home + Dashboard** (ตามบอร์ด "Home + Dashboard" ในดีไซน์): หน้าแรกของแอปแสดงรายการล่าสุด / ดูต่อ / library
+
+### Milestone 5 — ฟีเจอร์เสริมและขัดเกลา
+- [ ] ซับไตเติล + เลือกแทร็กเสียง/ซับ
+- [ ] Media keys + SMTC (ชื่อเพลงในแผงควบคุมเสียงของ Windows)
+- [ ] โหมดเพลง (โชว์ปกอัลบั้ม) แยกจากโหมดวิดีโอ
+- [ ] Mini player (หน้าต่างเล็ก always-on-top)
+  - [ ] ปรับความโปร่งใสได้ (slider) ผ่าน `window_manager` → `setOpacity(0.0–1.0)`
+  - [ ] จำค่าความโปร่งใสและตำแหน่งหน้าต่างของ mini player
+  - [ ] (ทางเลือก) เอฟเฟกต์ blur / Mica / Acrylic ด้วย `flutter_acrylic`
+  - [ ] (ทางเลือก) โหมด click-through เมื่อโปร่งใสมาก ผ่าน `setIgnoreMouseEvents`
+- [ ] **ธีมและสีเน้น**
+  - [ ] ธีม Dark / Light / System (System ตามการตั้งค่าของ Windows) เก็บค่าที่เลือกไว้
+  - [ ] Accent color เลือกอิสระด้วย color picker (มีสีสำเร็จรูปให้ด้วย)
+  - [ ] คำนวณสีตัวอักษรบนปุ่มสีเน้นและสีข้อความสีเน้นให้อ่านออกในทั้งสองธีมโดยอัตโนมัติ
+  - [ ] พื้นที่วิดีโอเป็นสีเข้มเสมอทั้งสองธีม
+- [ ] **หน้า Settings เต็มรูปแบบ** (ตามบอร์ด "Settings" ในดีไซน์)
+  - [ ] 7 หมวด: General, Playback, Video, Mini player, Library, Shortcuts, About
+  - [ ] การ์ด Default player (ปุ่มเปิด Windows Default apps + จำนวนนามสกุลที่ตั้งแล้ว)
+  - [ ] หน้าตั้งปุ่มลัด + Reset to defaults
+  - [x] ธีมและ accent (ทำแล้วเป็น dialog ชั่วคราว ต้องย้ายเข้าหน้านี้)
+- [ ] ปรับแต่ง UI อื่นๆ
+
+## 6. จุดที่ต้องระวัง
+- UI เสียงและวิดีโอควรแยกโหมดกัน ไม่บังคับให้เหมือนกัน
+- ทำ Milestone 1–2 ให้เสถียรก่อนเพิ่มฟีเจอร์
+- Default app ต้องผ่าน installer เท่านั้น รัน `flutter run` หรือเปิด exe ตรงๆ จะไม่ลงทะเบียนครบ
+- ถ้าแจกจ่ายให้คนอื่น Windows SmartScreen อาจเตือนถ้าไม่มี code signing (ใช้เองไม่มีปัญหา)
+
+## 7. Prompt เริ่มต้น (สำหรับ AI ช่วยเขียนโค้ด)
+> สร้างโปรเจกต์ Flutter Desktop (Windows เท่านั้น) ชื่อ NSL Media Player เป็น media player เล่นไฟล์เสียงและวิดีโอ ใช้ `media_kit`, `media_kit_video`, `media_kit_libs_windows_video`, `window_manager`, `desktop_drop`, `file_picker` ขั้นแรกทำ: (1) หน้าหลักที่เล่นไฟล์เดียวได้ มี play/pause, seek bar, volume, ความเร็ว (2) รองรับลากไฟล์มาวางและรับ path จาก command-line args (3) ปุ่มลัดคีย์บอร์ดและ fullscreen แยกโค้ดเป็น `player_controller`, `ui/`, `services/` ยังไม่ต้องทำ playlist
