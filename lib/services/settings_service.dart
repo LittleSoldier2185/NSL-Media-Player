@@ -90,6 +90,9 @@ class AppSettings extends ChangeNotifier {
   bool get audioOnlyDefault => _prefs.getBool('audioOnlyDefault') ?? false;
 
   // --- Mini player ---
+  /// Show the picture of videos in the mini player (otherwise sound only).
+  bool get miniShowVideo => _prefs.getBool('miniShowVideo') ?? true;
+
   bool get miniRememberPos => _prefs.getBool('miniRememberPos') ?? true;
 
   // --- Library ---

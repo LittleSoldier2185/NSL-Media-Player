@@ -62,10 +62,65 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   bool _mini = false;
   bool _miniAudioOnly = false; // audio-only switched on by entering mini
   Rect? _fullBounds;
-  static const _miniSize = Size(420, 248);
+  static const _miniBase = Size(420, 248);
+
+  // Mini window sizing: taller while a picture is shown.
+  Size? _miniApplied;
+  Offset? _miniOriginOnce; // where to place the window on the next resize
+  bool _miniResizing = false;
+  bool _miniResizePending = false;
 
   NslPlayerController get c => widget.controller;
   AppSettings get s => widget.settings;
+
+  Size get _miniTarget => c.showVideo
+      ? Size(_miniBase.width, _miniBase.height + kMiniVideoHeight)
+      : _miniBase;
+
+  /// Fits the mini window to what it shows (card only, or card + picture).
+  /// Safe to call often: it does nothing when the size is already right, and
+  /// overlapping calls are folded into one more pass.
+  Future<void> _applyMiniSize() async {
+    if (!_mini) return;
+    if (_miniResizing) {
+      _miniResizePending = true;
+      return;
+    }
+    _miniResizing = true;
+    try {
+      do {
+        _miniResizePending = false;
+        final once = _miniOriginOnce;
+        _miniOriginOnce = null;
+        final target = _miniTarget;
+        if (once == null) {
+          if (target == _miniApplied) continue;
+          // Leave a minimized window alone; it re-fits when restored.
+          if (await windowManager.isMinimized()) continue;
+        }
+        _miniApplied = target;
+        final origin = once ?? (await windowManager.getBounds()).topLeft;
+        // Resize while the window is still resizable: Windows ignores setSize
+        // once resizing is disabled. Relax the limits first so a bigger or
+        // smaller target is never rejected by the previous min/max.
+        await windowManager.setResizable(true);
+        await windowManager.setMinimumSize(const Size(320, 160));
+        await windowManager.setMaximumSize(const Size(100000, 100000));
+        await windowManager.setBounds(
+          Rect.fromLTWH(origin.dx, origin.dy, target.width, target.height),
+        );
+        await windowManager.setMinimumSize(target);
+        await windowManager.setMaximumSize(target);
+        await windowManager.setResizable(false);
+      } while (_miniResizePending && _mini);
+    } finally {
+      _miniResizing = false;
+    }
+  }
+
+  void _onControllerChanged() {
+    if (_mini) _applyMiniSize();
+  }
 
   Future<void> _enterMini() async {
     if (_mini) return;
@@ -74,33 +129,32 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     if (await windowManager.isMaximized()) await windowManager.unmaximize();
     // Set first so the resize events below are not saved as the full-window size.
     setState(() => _mini = true);
-    // Resize while the window is still resizable: Windows ignores setSize
-    // once resizing is disabled, which left the mini card in a stale layout.
-    await windowManager.setResizable(true);
-    await windowManager.setMinimumSize(_miniSize);
-    await windowManager.setMaximumSize(_miniSize);
-    final pos = s.miniRememberPos ? s.miniPosition : null;
-    await windowManager.setBounds(
-      Rect.fromLTWH(
-        pos?.dx ?? _fullBounds!.left,
-        pos?.dy ?? _fullBounds!.top,
-        _miniSize.width,
-        _miniSize.height,
-      ),
-    );
-    await windowManager.setResizable(false);
-    await windowManager.setAlwaysOnTop(s.miniOnTop);
-    await windowManager.setOpacity(s.miniOpacity / 100);
-    c.setReducedLoad(true);
-    // Mini + audio-only is the lightest combination.
-    if (c.isVideoFile && !c.audioOnly) {
+    _miniApplied = null;
+    // Sound-only mode is chosen before sizing so the window opens the right size.
+    if (c.isVideoFile && !c.audioOnly && !s.miniShowVideo) {
       _miniAudioOnly = true;
       await c.setAudioOnly(true);
     }
+    final pos = s.miniRememberPos ? s.miniPosition : null;
+    _miniOriginOnce = pos ?? _fullBounds!.topLeft;
+    await _applyMiniSize();
+    await windowManager.setAlwaysOnTop(s.miniOnTop);
+    await windowManager.setOpacity(s.miniOpacity / 100);
+    c.setReducedLoad(true);
+  }
+
+  /// Mini player button: picture + sound <-> sound only.
+  void _toggleMiniVideo() {
+    // The user's own choice now; do not undo it when leaving mini.
+    _miniAudioOnly = false;
+    c.toggleAudioOnly();
   }
 
   Future<void> _exitMini() async {
     if (!_mini) return;
+    // Stop any in-flight mini resize from fighting the restore below.
+    _miniResizePending = false;
+    _miniApplied = null;
     await windowManager.setOpacity(1);
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setResizable(true);
@@ -155,6 +209,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   @override
   void dispose() {
     windowManager.removeListener(this);
+    c.removeListener(_onControllerChanged);
     super.dispose();
   }
 
@@ -162,6 +217,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    c.addListener(_onControllerChanged);
     final args = widget.initialArgs.where(isSupportedMedia).toList();
     if (args.isNotEmpty) {
       c.openPaths(args);
@@ -318,6 +374,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                           windowManager.setAlwaysOnTop(s.miniOnTop);
                           setState(() {});
                         },
+                        onToggleVideo: _toggleMiniVideo,
                         onExpand: _exitMini,
                       ),
                     )

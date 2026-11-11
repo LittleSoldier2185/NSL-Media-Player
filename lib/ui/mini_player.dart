@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:window_manager/legacy.dart';
 
 import '../player_controller/player_controller.dart';
 import 'controls.dart';
 import 'theme.dart';
+
+/// Height of the picture area (16:9 at the mini window's 420px width). The
+/// window grows by this much while a video is shown.
+const kMiniVideoHeight = 236.0;
 
 /// Mini player card, following the "Mini player" board of the UI design.
 /// The window itself is resized / made always-on-top / made translucent by
@@ -16,6 +21,7 @@ class MiniPlayer extends StatelessWidget {
     required this.onTop,
     required this.onOpacity,
     required this.onToggleOnTop,
+    required this.onToggleVideo,
     required this.onExpand,
   });
 
@@ -24,6 +30,9 @@ class MiniPlayer extends StatelessWidget {
   final bool onTop;
   final ValueChanged<int> onOpacity;
   final VoidCallback onToggleOnTop;
+
+  /// Switches between picture + sound and sound only (lighter on CPU/GPU).
+  final VoidCallback onToggleVideo;
   final VoidCallback onExpand;
 
   @override
@@ -81,6 +90,20 @@ class MiniPlayer extends StatelessWidget {
                   ),
                   icon: Icon(onTop ? Icons.push_pin : Icons.push_pin_outlined),
                 ),
+                ListenableBuilder(
+                  listenable: controller,
+                  builder: (_, _) => controller.isVideoFile
+                      ? IconBtn(
+                          controller.audioOnly
+                              ? Icons.videocam_off_outlined
+                              : Icons.videocam_outlined,
+                          onToggleVideo,
+                          tooltip: controller.audioOnly
+                              ? 'Show video'
+                              : 'Sound only (saves CPU)',
+                        )
+                      : const SizedBox.shrink(),
+                ),
                 IconBtn(Icons.open_in_full, onExpand, tooltip: 'Full player'),
                 IconBtn(
                   Icons.close,
@@ -89,6 +112,23 @@ class MiniPlayer extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          // Picture (only while a video is playing with video switched on)
+          ListenableBuilder(
+            listenable: controller,
+            builder: (_, _) => controller.showVideo
+                ? SizedBox(
+                    height: kMiniVideoHeight,
+                    width: double.infinity,
+                    child: ColoredBox(
+                      color: Colors.black,
+                      child: Video(
+                        controller: controller.video,
+                        controls: NoVideoControls,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
           // Now playing
           Padding(
