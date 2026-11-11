@@ -1151,7 +1151,10 @@ class _Kbd extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+    // A fixed height: with `alignment` a Container grows to fill the height it
+    // is offered, which made this a full-height block inside the 36px button.
+    height: 20,
+    constraints: const BoxConstraints(minWidth: 20),
     padding: const EdgeInsets.symmetric(horizontal: 6),
     alignment: Alignment.center,
     decoration: BoxDecoration(
