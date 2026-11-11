@@ -93,6 +93,22 @@ class AppSettings extends ChangeNotifier {
   /// Show the picture of videos in the mini player (otherwise sound only).
   bool get miniShowVideo => _prefs.getBool('miniShowVideo') ?? true;
 
+  /// Size the user gave the mini player's picture-in-picture window, as a
+  /// multiple of its default size (1.0).
+  double get miniScale => _prefs.getDouble('miniScale') ?? 1.0;
+  set miniScale(double v) => _prefs.setDouble('miniScale', v);
+
+  /// Width the user gave the mini player's audio card.
+  double get miniCardWidth => _prefs.getDouble('miniCardWidth') ?? 420.0;
+  set miniCardWidth(double v) => _prefs.setDouble('miniCardWidth', v);
+
+  /// Forget the sizes the user dragged the mini player to.
+  void resetMiniSize() {
+    _prefs.remove('miniScale');
+    _prefs.remove('miniCardWidth');
+    notifyListeners();
+  }
+
   bool get miniRememberPos => _prefs.getBool('miniRememberPos') ?? true;
 
   // --- Library ---

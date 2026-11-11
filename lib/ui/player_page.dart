@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -62,9 +63,11 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   bool _mini = false;
   bool _miniAudioOnly = false; // audio-only switched on by entering mini
   Rect? _fullBounds;
-  static const _miniBase = Size(420, 248);
 
-  // Mini window sizing: taller while a picture is shown.
+  Timer? _resizeDebounce;
+
+  // Mini window sizing: shaped like the video while a picture is shown, and
+  // resizable by dragging its edges.
   Size? _miniApplied;
   Offset? _miniOriginOnce; // where to place the window on the next resize
   bool _miniResizing = false;
@@ -73,9 +76,47 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   NslPlayerController get c => widget.controller;
   AppSettings get s => widget.settings;
 
-  /// Audio: the small card. Video: picture-in-picture, shaped like the video.
-  Size get _miniTarget =>
-      c.showVideo ? miniVideoSize(c.videoAspect) : _miniBase;
+  /// Audio: the small card at the width the user chose. Video: picture-in-
+  /// picture, shaped like the video, at the size the user chose.
+  Size get _miniTarget => c.showVideo
+      ? miniVideoSizeAt(c.videoAspect, s.miniScale)
+      : Size(
+          s.miniCardWidth.clamp(kMiniCardMinWidth, kMiniCardMaxWidth),
+          kMiniCardHeight,
+        );
+
+  /// What the user may drag the mini window to: a video keeps its shape, the
+  /// audio card only changes width.
+  ({Size min, Size max, double aspect}) _miniLimits(Size target) {
+    if (!c.showVideo) {
+      return (
+        min: const Size(kMiniCardMinWidth, kMiniCardHeight),
+        max: const Size(kMiniCardMaxWidth, kMiniCardHeight),
+        aspect: 0,
+      );
+    }
+    final base = miniVideoSize(c.videoAspect);
+    Size scaled(double k) => Size(
+      (base.width * k).roundToDouble(),
+      (base.height * k).roundToDouble(),
+    );
+    return (
+      min: scaled(miniScaleMin(base)),
+      max: scaled(miniScaleMax(base)),
+      aspect: target.width / target.height,
+    );
+  }
+
+  /// Remembers a size the user dragged the mini window to.
+  void _rememberMiniSize(Size size) {
+    if (c.showVideo) {
+      s.miniScale = miniScaleForWidth(c.videoAspect, size.width);
+    } else {
+      s.miniCardWidth = size.width.clamp(kMiniCardMinWidth, kMiniCardMaxWidth);
+    }
+    // The window already has this size; do not resize it again.
+    _miniApplied = _miniTarget;
+  }
 
   /// Fits the mini window to what it shows (card only, or card + picture).
   /// Safe to call often: it does nothing when the size is already right, and
@@ -100,18 +141,19 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         }
         _miniApplied = target;
         final origin = once ?? (await windowManager.getBounds()).topLeft;
-        // Resize while the window is still resizable: Windows ignores setSize
-        // once resizing is disabled. Relax the limits first so a bigger or
-        // smaller target is never rejected by the previous min/max.
+        // Lift the previous limits and shape lock first so a bigger or
+        // smaller target is never rejected, then set the new ones.
         await windowManager.setResizable(true);
-        await windowManager.setMinimumSize(const Size(320, 160));
+        await windowManager.setAspectRatio(0);
+        await windowManager.setMinimumSize(const Size(200, 100));
         await windowManager.setMaximumSize(const Size(100000, 100000));
         await windowManager.setBounds(
           Rect.fromLTWH(origin.dx, origin.dy, target.width, target.height),
         );
-        await windowManager.setMinimumSize(target);
-        await windowManager.setMaximumSize(target);
-        await windowManager.setResizable(false);
+        final limits = _miniLimits(target);
+        await windowManager.setMinimumSize(limits.min);
+        await windowManager.setMaximumSize(limits.max);
+        await windowManager.setAspectRatio(limits.aspect);
       } while (_miniResizePending && _mini);
     } finally {
       _miniResizing = false;
@@ -158,6 +200,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     await windowManager.setOpacity(1);
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setResizable(true);
+    await windowManager.setAspectRatio(0);
     await windowManager.setMaximumSize(const Size(100000, 100000));
     await windowManager.setMinimumSize(const Size(640, 420));
     final b = _fullBounds;
@@ -172,8 +215,11 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   Future<void> _saveBounds() async {
     if (_mini) {
-      if (s.miniRememberPos)
-        s.miniPosition = (await windowManager.getBounds()).topLeft;
+      if (await windowManager.isMinimized()) return;
+      final b = await windowManager.getBounds();
+      if (s.miniRememberPos) s.miniPosition = b.topLeft;
+      // Our own resizing is not the user's choice; only remember drags.
+      if (!_miniResizing) _rememberMiniSize(b.size);
       return;
     }
     if (!s.rememberWindow) return;
@@ -184,6 +230,15 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   void onWindowResized() => _saveBounds();
+
+  /// While the user drags a mini window edge: save once they pause, in case
+  /// the "resized" event does not arrive.
+  @override
+  void onWindowResize() {
+    if (!_mini || _miniResizing) return;
+    _resizeDebounce?.cancel();
+    _resizeDebounce = Timer(const Duration(milliseconds: 350), _saveBounds);
+  }
 
   @override
   void onWindowMoved() => _saveBounds();
@@ -208,6 +263,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   void dispose() {
+    _resizeDebounce?.cancel();
     windowManager.removeListener(this);
     c.removeListener(_onControllerChanged);
     super.dispose();

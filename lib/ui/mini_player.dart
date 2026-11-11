@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:window_manager/legacy.dart';
@@ -20,6 +22,39 @@ Size miniVideoSize(double aspect) {
   const maxHeight = 480.0;
   final w = (maxHeight * aspect).clamp(270.0, longSide);
   return Size(w.roundToDouble(), maxHeight);
+}
+
+/// Audio card limits: only the width can be changed, the height is fixed.
+const kMiniCardHeight = 248.0;
+const kMiniCardMinWidth = 340.0;
+const kMiniCardMaxWidth = 720.0;
+const kMiniCardDefaultWidth = 420.0;
+
+/// How far a picture-in-picture window may be shrunk / enlarged relative to
+/// its default size [base] (1.0): not narrower than 220px or shorter than
+/// 120px, not wider than 1000px or taller than 720px.
+double miniScaleMin(Size base) =>
+    math.min(1.0, math.max(220 / base.width, 120 / base.height));
+double miniScaleMax(Size base) =>
+    math.max(1.0, math.min(1000 / base.width, 720 / base.height));
+
+/// Window size of a picture-in-picture mini player at the user's [scale]
+/// (1.0 = default); the video's shape is always kept.
+Size miniVideoSizeAt(double aspect, double scale) {
+  final base = miniVideoSize(aspect);
+  final s = scale.isNaN
+      ? 1.0
+      : scale.clamp(miniScaleMin(base), miniScaleMax(base));
+  return Size(
+    (base.width * s).roundToDouble(),
+    (base.height * s).roundToDouble(),
+  );
+}
+
+/// The scale a picture-in-picture window of [width] px corresponds to.
+double miniScaleForWidth(double aspect, double width) {
+  final base = miniVideoSize(aspect);
+  return (width / base.width).clamp(miniScaleMin(base), miniScaleMax(base));
 }
 
 /// Mini player. A video is shown picture-in-picture style (picture fills the

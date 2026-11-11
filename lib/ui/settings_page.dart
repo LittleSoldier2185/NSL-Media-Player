@@ -355,6 +355,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 s.put('miniOnTop', v);
               },
             ),
+            _row(
+              p,
+              'Window size',
+              'Drag the edges of the mini player to resize it; the size is '
+                  'remembered. A video keeps its shape.',
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+                onPressed: s.resetMiniSize,
+                child: const Text('Reset size'),
+              ),
+            ),
             _toggle(
               p,
               'Show video',
