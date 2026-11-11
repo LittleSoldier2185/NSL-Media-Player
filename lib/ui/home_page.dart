@@ -30,6 +30,7 @@ class HomePage extends StatefulWidget {
     required this.section,
     required this.onOpenPlayer,
     required this.onResume,
+    required this.onOpenLibrary,
     this.miniHost,
   });
 
@@ -50,6 +51,9 @@ class HomePage extends StatefulWidget {
   final NavDest section;
   final VoidCallback onOpenPlayer;
   final void Function(HistoryEntry) onResume;
+
+  /// "See all in Library" and the empty "Add a folder" prompt.
+  final VoidCallback onOpenLibrary;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -101,24 +105,8 @@ class _HomePageState extends State<HomePage> {
               onOpenPlayer: widget.onOpenPlayer,
             ),
             _ => ListenableBuilder(
-              listenable: widget.history,
-              builder: (context, _) => SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _header(p),
-                    const SizedBox(height: 28),
-                    _continue(p),
-                    const SizedBox(height: 28),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: [_week(p), _library(p)],
-                    ),
-                  ],
-                ),
-              ),
+              listenable: Listenable.merge([widget.history, widget.library]),
+              builder: (context, _) => _homeScroll(p),
             ),
           },
         ),
@@ -143,12 +131,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _card(NslPalette p, {required Widget child, double width = 480}) {
+  Widget _card(NslPalette p, {required Widget child, double? width}) {
     return Container(
       width: width,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: p.panelBorder),
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -160,98 +148,267 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _header(NslPalette p) {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      alignment: WrapAlignment.spaceBetween,
-      crossAxisAlignment: WrapCrossAlignment.end,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _greeting(),
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-                color: p.text,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Pick up where you left off.',
-              style: TextStyle(fontSize: 14, color: p.textDim),
-            ),
-          ],
+  /// The Home page: a centered column at most [_maxWidth] wide that reflows
+  /// as the window (or the sidebar) changes the room available.
+  static const _maxWidth = 1180.0;
+
+  Widget _homeScroll(NslPalette p) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(40, 32, 40, 40),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _maxWidth),
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final w = box.maxWidth;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _header(p, w),
+                  const SizedBox(height: 30),
+                  _continue(p, w),
+                  const SizedBox(height: 34),
+                  _stats(p, w),
+                  const SizedBox(height: 34),
+                  _recent(p, w),
+                ],
+              );
+            },
+          ),
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            FilledButton.icon(
-              onPressed: widget.onOpenFile,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Open file'),
-              style: FilledButton.styleFrom(
-                backgroundColor: p.accent,
-                foregroundColor: p.onAccent,
-                minimumSize: const Size(0, 44),
-              ),
-            ),
-            OutlinedButton(
-              onPressed: widget.onOpenFolder,
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
-              child: const Text('Open folder'),
-            ),
-            OutlinedButton(
-              onPressed: widget.onMini,
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
-              child: const Text('Mini player'),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _continue(NslPalette p) {
-    final items = widget.history.resumable
-        .where((e) => File(e.path).existsSync())
-        .toList();
-    return Column(
+  Widget _section(NslPalette p, String title, {Widget? trailing}) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: p.text,
+            ),
+          ),
+        ),
+        ?trailing,
+      ],
+    ),
+  );
+
+  Widget _header(NslPalette p, double w) {
+    final greeting = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Continue',
+          _greeting(),
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 30,
             fontWeight: FontWeight.w600,
             color: p.text,
+            height: 1.1,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
+        Text(
+          'Pick up where you left off.',
+          style: TextStyle(fontSize: 14, color: p.textDim),
+        ),
+      ],
+    );
+    final buttons = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        FilledButton.icon(
+          onPressed: widget.onOpenFile,
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Open file'),
+          style: FilledButton.styleFrom(
+            backgroundColor: p.accent,
+            foregroundColor: p.onAccent,
+            minimumSize: const Size(0, 44),
+          ),
+        ),
+        OutlinedButton(
+          onPressed: widget.onOpenFolder,
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+          child: const Text('Open folder'),
+        ),
+        OutlinedButton(
+          onPressed: widget.onMini,
+          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+          child: const Text('Mini player'),
+        ),
+      ],
+    );
+    // Wide: greeting on the left, actions on the right edge. Narrow: stacked.
+    if (w >= 760) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(child: greeting),
+          buttons,
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [greeting, const SizedBox(height: 16), buttons],
+    );
+  }
+
+  /// Files that were stopped partway, newest first (at most three).
+  List<HistoryEntry> get _resumable =>
+      widget.history.resumable.where((e) => File(e.path).existsSync()).toList();
+
+  Widget _continue(NslPalette p, double w) {
+    final items = _resumable;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(p, 'Continue'),
         if (items.isEmpty)
           Text(
             'Nothing to resume yet. Files you stop partway through show up here.',
             style: TextStyle(fontSize: 13, color: p.textDim),
           )
         else
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              for (final e in items)
-                SizedBox(
-                  width: 260,
-                  child: _ResumeCard(
-                    entry: e,
-                    thumbnails: widget.library.thumbnails,
-                    onTap: () => widget.onResume(e),
+          _continueBody(items, w),
+      ],
+    );
+  }
+
+  Widget _continueBody(List<HistoryEntry> items, double w) {
+    final thumbs = widget.library.thumbnails;
+    final hero = _HeroCard(
+      entry: items.first,
+      thumbnails: thumbs,
+      onTap: () => widget.onResume(items.first),
+    );
+    final rest = [
+      for (final e in items.skip(1))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: _MiniResume(
+            entry: e,
+            thumbnails: thumbs,
+            onTap: () => widget.onResume(e),
+          ),
+        ),
+    ];
+    if (rest.isEmpty) {
+      // One item: the big card alone, not stretched across the whole width.
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: hero,
+      );
+    }
+    if (w >= 820) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 155, child: hero),
+          const SizedBox(width: 20),
+          Expanded(flex: 100, child: Column(children: rest)),
+        ],
+      );
+    }
+    return Column(children: [hero, const SizedBox(height: 14), ...rest]);
+  }
+
+  Widget _stats(NslPalette p, double w) {
+    if (w >= 760) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 2, child: _week(p)),
+            const SizedBox(width: 20),
+            Expanded(child: _mostPlayed(p)),
+          ],
+        ),
+      );
+    }
+    return Column(
+      children: [_week(p), const SizedBox(height: 16), _mostPlayed(p)],
+    );
+  }
+
+  /// The newest files of the Library, as many as fit in one row.
+  Widget _recent(NslPalette p, double w) {
+    final lib = widget.library;
+    final trailing = TextButton(
+      onPressed: widget.onOpenLibrary,
+      child: Text(
+        lib.items.isEmpty ? 'Open Library' : 'See all in Library',
+        style: TextStyle(color: p.accentInk, fontSize: 13),
+      ),
+    );
+    if (lib.items.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _section(p, 'Recently added', trailing: trailing),
+          _card(
+            p,
+            child: Row(
+              children: [
+                Icon(Icons.create_new_folder_outlined, color: p.icon),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    'Add the folders where you keep your music and videos and '
+                    'the newest files will show up here.',
+                    style: TextStyle(fontSize: 13.5, color: p.textDim),
                   ),
                 ),
-            ],
+                const SizedBox(width: 14),
+                FilledButton(
+                  onPressed: widget.onOpenLibrary,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: p.accent,
+                    foregroundColor: p.onAccent,
+                    minimumSize: const Size(0, 44),
+                  ),
+                  child: const Text('Add a folder'),
+                ),
+              ],
+            ),
           ),
+        ],
+      );
+    }
+    const gap = 16.0;
+    final cols = ((w + gap) / (176 + gap)).floor().clamp(2, 6);
+    final tileW = (w - gap * (cols - 1)) / cols;
+    final shown = lib.query(sort: LibrarySort.recent).take(cols).toList();
+    final paths = [for (final i in shown) i.path];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(p, 'Recently added', trailing: trailing),
+        Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (var i = 0; i < shown.length; i++)
+              SizedBox(
+                width: tileW,
+                child: _RecentTile(
+                  item: shown[i],
+                  library: lib,
+                  onTap: () async {
+                    await widget.controller.openPaths(paths, start: i);
+                    widget.onOpenPlayer();
+                  },
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -343,7 +500,7 @@ class _HomePageState extends State<HomePage> {
               )
           else
             SizedBox(
-              height: 190,
+              height: 150,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -410,53 +567,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _library(NslPalette p) {
-    final c = widget.controller;
-    final songs = c.queue.where((q) => !q.isVideo).length;
-    final videos = c.queue.where((q) => q.isVideo).length;
+  Widget _mostPlayed(NslPalette p) {
     final top = widget.history.topThisMonth;
-    Widget stat(String n, String label) => Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            n,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              color: p.text,
-            ),
-          ),
-          Text(label, style: TextStyle(fontSize: 12, color: p.textDim)),
-        ],
-      ),
-    );
     return _card(
       p,
-      width: 360,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'In your queue',
+            'Most played this month',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: p.text,
             ),
           ),
-          const SizedBox(height: 12),
-          Row(children: [stat('$songs', 'Songs'), stat('$videos', 'Videos')]),
-          const SizedBox(height: 20),
-          Text(
-            'Most played this month',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: p.icon,
-            ),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           if (top.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -468,7 +594,7 @@ class _HomePageState extends State<HomePage> {
           else
             for (var i = 0; i < top.length; i++)
               Container(
-                constraints: const BoxConstraints(minHeight: 44),
+                constraints: const BoxConstraints(minHeight: 46),
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: p.panelBorder)),
                 ),
@@ -493,6 +619,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       '${top[i].$2} plays',
                       style: TextStyle(fontSize: 12, color: p.textDim),
@@ -506,8 +633,32 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _ResumeCard extends StatelessWidget {
-  const _ResumeCard({
+/// 1:23 style clock from milliseconds.
+String _clock(int ms) {
+  final d = Duration(milliseconds: ms);
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return d.inHours > 0
+      ? '${d.inHours}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:$s'
+      : '${d.inMinutes}:$s';
+}
+
+/// "just now", "3 h ago", "yesterday", "5 days ago".
+String _ago(DateTime t) {
+  final d = DateTime.now().difference(t);
+  if (d.inMinutes < 2) return 'just now';
+  if (d.inHours < 1) return '${d.inMinutes} min ago';
+  if (d.inHours < 24) return '${d.inHours} h ago';
+  if (d.inHours < 48) return 'yesterday';
+  return '${d.inDays} days ago';
+}
+
+String _progressText(HistoryEntry e) =>
+    e.durMs > 0 ? '${_clock(e.posMs)} of ${_clock(e.durMs)}' : _clock(e.posMs);
+
+/// The biggest "Continue" card: a large picture with a play button, the
+/// title and how far you got.
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({
     required this.entry,
     required this.thumbnails,
     required this.onTap,
@@ -519,22 +670,14 @@ class _ResumeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.pal;
-    String fmt(int ms) {
-      final d = Duration(milliseconds: ms);
-      final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-      return d.inHours > 0
-          ? '${d.inHours}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:$s'
-          : '${d.inMinutes}:$s';
-    }
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: p.panelBorder),
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -547,17 +690,37 @@ class _ResumeCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                height: 100,
-                child: PathThumb(
-                  path: entry.path,
-                  thumbnails: thumbnails,
-                  // A video frame fills the card; square album art is shown whole.
-                  fit: entry.isVideo ? BoxFit.cover : BoxFit.contain,
-                  iconSize: 28,
+                height: 250,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    PathThumb(
+                      path: entry.path,
+                      thumbnails: thumbnails,
+                      fit: entry.isVideo ? BoxFit.cover : BoxFit.contain,
+                      iconSize: 40,
+                    ),
+                    Center(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xB80B0C10),
+                          border: Border.all(color: const Color(0x4DFFFFFF)),
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          size: 34,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -566,18 +729,18 @@ class _ResumeCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: p.text,
                       ),
                     ),
+                    const SizedBox(height: 3),
                     Text(
-                      entry.durMs > 0
-                          ? '${fmt(entry.posMs)} of ${fmt(entry.durMs)}'
-                          : fmt(entry.posMs),
-                      style: TextStyle(fontSize: 12, color: p.textDim),
+                      '${entry.isVideo ? 'Video' : 'Audio'} · '
+                      '${_progressText(entry)} · ${_ago(entry.lastPlayed)}',
+                      style: TextStyle(fontSize: 12.5, color: p.textDim),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
@@ -593,6 +756,142 @@ class _ResumeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A smaller "Continue" entry: picture on the left, title and progress.
+class _MiniResume extends StatelessWidget {
+  const _MiniResume({
+    required this.entry,
+    required this.thumbnails,
+    required this.onTap,
+  });
+  final HistoryEntry entry;
+  final ThumbnailService thumbnails;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: p.panelBorder),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [p.panelTop, p.panelBottom],
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 150,
+                height: 84,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: PathThumb(
+                  path: entry.path,
+                  thumbnails: thumbnails,
+                  fit: entry.isVideo ? BoxFit.cover : BoxFit.contain,
+                  iconSize: 26,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: p.text,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _progressText(entry),
+                      style: TextStyle(fontSize: 12.5, color: p.textDim),
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: entry.fraction,
+                        minHeight: 4,
+                        color: p.accent,
+                        backgroundColor: p.track,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One tile of the "Recently added" row.
+class _RecentTile extends StatelessWidget {
+  const _RecentTile({
+    required this.item,
+    required this.library,
+    required this.onTap,
+  });
+  final LibraryItem item;
+  final LibraryService library;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: LibraryThumb(
+                item: item,
+                library: library,
+                fit: item.isVideo ? BoxFit.cover : BoxFit.contain,
+                iconSize: 28,
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: p.text,
+            ),
+          ),
+        ],
       ),
     );
   }

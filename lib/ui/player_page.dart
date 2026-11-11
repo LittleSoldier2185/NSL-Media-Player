@@ -769,6 +769,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                         onOpenPlayer: _showPlayer,
                                         miniHost: widget.miniHost,
                                         onResume: _resume,
+                                        onOpenLibrary: () =>
+                                            _navigate(NavDest.library),
                                       )
                                     : Row(
                                         children: [
