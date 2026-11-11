@@ -28,6 +28,7 @@ class LibraryView extends StatefulWidget {
 class _LibraryViewState extends State<LibraryView> {
   final _search = TextEditingController();
   bool? _video; // null = all
+  String? _folder; // null = all saved folders
   LibrarySort _sort = LibrarySort.title;
 
   LibraryService get lib => widget.library;
@@ -40,7 +41,13 @@ class _LibraryViewState extends State<LibraryView> {
 
   Future<void> _addFolder() async {
     final dir = await FilePicker.platform.getDirectoryPath();
-    if (dir != null) await lib.addFolder(dir);
+    if (dir == null) return;
+    final added = await lib.addFolder(dir);
+    if (!added && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('That folder is already saved.')),
+      );
+    }
   }
 
   /// Plays the visible list starting at [index].
@@ -67,6 +74,7 @@ class _LibraryViewState extends State<LibraryView> {
         final shown = lib.query(
           query: _search.text,
           video: _video,
+          folder: _folder,
           sort: _sort,
         );
         return Padding(
@@ -140,6 +148,7 @@ class _LibraryViewState extends State<LibraryView> {
                   style: TextStyle(fontSize: 12, color: p.textDim),
                 ),
               ],
+              if (lib.folders.isNotEmpty) _folderChips(p),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -214,7 +223,7 @@ class _LibraryViewState extends State<LibraryView> {
                         ),
                       ),
               ),
-              if (lib.folders.isNotEmpty) _folderChips(p),
+              const SizedBox(height: 8),
             ],
           ),
         );
@@ -222,18 +231,42 @@ class _LibraryViewState extends State<LibraryView> {
     );
   }
 
+  /// Saved folders: tap one to see only its files, tap again (or "All
+  /// folders") to see everything. The x removes it from the library.
   Widget _folderChips(NslPalette p) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.only(top: 16),
       child: Wrap(
         spacing: 8,
         runSpacing: 6,
         children: [
+          ChoiceChip(
+            label: Text(
+              'All folders (${lib.items.length})',
+              style: const TextStyle(fontSize: 12),
+            ),
+            selected: _folder == null,
+            onSelected: (_) => setState(() => _folder = null),
+          ),
           for (final f in lib.folders)
-            InputChip(
-              label: Text(f, style: const TextStyle(fontSize: 12)),
-              onDeleted: () => lib.removeFolder(f),
-              deleteButtonTooltipMessage: 'Remove folder from library',
+            Tooltip(
+              message: f,
+              child: InputChip(
+                label: Text(
+                  '${LibraryService.folderName(f)} (${lib.countIn(f)})',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                avatar: const Icon(Icons.folder_outlined, size: 16),
+                selected: _folder == f,
+                showCheckmark: false,
+                onSelected: (_) =>
+                    setState(() => _folder = _folder == f ? null : f),
+                onDeleted: () {
+                  if (_folder == f) _folder = null;
+                  lib.removeFolder(f);
+                },
+                deleteButtonTooltipMessage: 'Remove folder from library',
+              ),
             ),
         ],
       ),

@@ -75,6 +75,64 @@ void main() {
     expect(lib.folders, isEmpty);
   });
 
+  group('multiple folders', () {
+    late Directory other;
+    setUp(() {
+      other = Directory('${tmp.path}\\media2')..createSync();
+      File('${other.path}\\zeta.mp3').writeAsStringSync('x');
+    });
+
+    test('several folders are saved together and filterable', () async {
+      final lib = await make();
+      await lib.addFolder(media.path);
+      await lib.addFolder(other.path);
+      expect(lib.folders.length, 2);
+      expect(lib.items.length, 5);
+      expect(lib.countIn(media.path), 4);
+      expect(lib.countIn(other.path), 1);
+      expect(lib.query(folder: other.path).map((i) => i.title), ['zeta']);
+    });
+
+    test('"media" does not match "media2" (whole path segments only)', () {
+      expect(LibraryService.isUnder('C:\\Music2\\a.mp3', 'C:\\Music'), isFalse);
+      expect(LibraryService.isUnder('C:\\Music\\a.mp3', 'C:\\Music'), isTrue);
+      expect(
+        LibraryService.isUnder('c:\\MUSIC\\x\\a.mp3', 'C:\\Music\\'),
+        isTrue,
+      );
+    });
+
+    test('adding the same folder twice is refused', () async {
+      final lib = await make();
+      expect(await lib.addFolder(media.path), isTrue);
+      expect(await lib.addFolder('${media.path}\\'), isFalse);
+      expect(lib.folders.length, 1);
+    });
+
+    test('nested folders do not list files twice', () async {
+      final lib = await make();
+      await lib.addFolder(media.path);
+      await lib.addFolder('${media.path}\\sub');
+      expect(lib.items.length, 4);
+    });
+
+    test(
+      'removing a parent keeps files a nested folder still covers',
+      () async {
+        final lib = await make();
+        await lib.addFolder(media.path);
+        await lib.addFolder('${media.path}\\sub');
+        await lib.removeFolder(media.path);
+        expect(lib.items.map((i) => i.title), ['gamma']);
+      },
+    );
+
+    test('folderName gives the last segment', () {
+      expect(LibraryService.folderName('C:\\Users\\me\\Music'), 'Music');
+      expect(LibraryService.folderName('C:\\Users\\me\\Music\\'), 'Music');
+    });
+  });
+
   test('rescan picks up new files', () async {
     final lib = await make();
     await lib.addFolder(media.path);

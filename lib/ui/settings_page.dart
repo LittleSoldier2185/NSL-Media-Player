@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/history_service.dart';
+import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/settings_service.dart';
 import 'theme.dart';
@@ -29,7 +31,11 @@ enum _Cat {
     Icons.picture_in_picture_alt_outlined,
     'The small always-on-top window.',
   ),
-  library('Library', Icons.folder_outlined, 'What the player remembers.'),
+  library(
+    'Library',
+    Icons.folder_outlined,
+    'Your media folders and what the player remembers.',
+  ),
   shortcuts(
     'Shortcuts',
     Icons.keyboard_outlined,
@@ -50,12 +56,14 @@ class SettingsPage extends StatefulWidget {
     required this.settings,
     required this.controller,
     required this.history,
+    required this.library,
     required this.onClose,
   });
 
   final AppSettings settings;
   final NslPlayerController controller;
   final HistoryService history;
+  final LibraryService library;
   final VoidCallback onClose;
 
   @override
@@ -87,7 +95,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final p = context.pal;
     return ListenableBuilder(
-      listenable: Listenable.merge([s, c]),
+      listenable: Listenable.merge([s, c, widget.library]),
       builder: (context, _) => Row(
         children: [
           _nav(p),
@@ -354,7 +362,67 @@ class _SettingsPageState extends State<SettingsPage> {
           ]),
         ];
       case _Cat.library:
+        final lib = widget.library;
         return [
+          _group(p, [
+            _row(
+              p,
+              'Media folders',
+              lib.folders.isEmpty
+                  ? 'Save the folders where you keep your music and videos. '
+                        'You can add as many as you like.'
+                  : '${lib.folders.length} saved · ${lib.items.length} files',
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: p.accent,
+                      foregroundColor: p.onAccent,
+                      minimumSize: const Size(0, 44),
+                    ),
+                    onPressed: () async {
+                      final dir = await FilePicker.platform.getDirectoryPath();
+                      if (dir == null) return;
+                      final added = await lib.addFolder(dir);
+                      if (!added && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('That folder is already saved.'),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add folder'),
+                  ),
+                  if (lib.folders.isNotEmpty)
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 44),
+                      ),
+                      onPressed: lib.scanning ? null : lib.scan,
+                      child: Text(lib.scanning ? 'Scanning…' : 'Rescan all'),
+                    ),
+                ],
+              ),
+            ),
+            for (final f in lib.folders)
+              _row(
+                p,
+                LibraryService.folderName(f),
+                '$f · ${lib.countIn(f)} files',
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                  ),
+                  onPressed: () => lib.removeFolder(f),
+                  child: const Text('Remove'),
+                ),
+              ),
+          ]),
+          const SizedBox(height: 16),
           _group(p, [
             _toggle(
               p,

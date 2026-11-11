@@ -83,21 +83,52 @@ class LibraryService extends ChangeNotifier {
 
   // ---- folders ----
 
-  Future<void> addFolder(String dir) async {
-    if (_folders.contains(dir)) return;
-    _folders.add(dir);
+  /// Drops trailing separators so `C:\Music\` and `C:\Music` are the same.
+  static String _norm(String dir) {
+    var d = dir;
+    while (d.length > 3 && (d.endsWith('\\') || d.endsWith('/'))) {
+      d = d.substring(0, d.length - 1);
+    }
+    return d;
+  }
+
+  /// True when [path] is inside [dir] (case-insensitive, whole segments only,
+  /// so `C:\Music2\a.mp3` is not inside `C:\Music`).
+  static bool isUnder(String path, String dir) {
+    final d = _norm(dir).toLowerCase();
+    final p = path.toLowerCase();
+    final base = d.endsWith('\\') || d.endsWith('/') ? d : '$d\\';
+    return p.startsWith(base) || p.startsWith(base.replaceAll('\\', '/'));
+  }
+
+  /// Last path segment, for showing a short folder name.
+  static String folderName(String dir) {
+    final n = fileNameOf(_norm(dir));
+    return n.isEmpty ? dir : n;
+  }
+
+  /// Number of library files inside [dir].
+  int countIn(String dir) => _items.where((i) => isUnder(i.path, dir)).length;
+
+  /// Saves [dir] to the library and scans it. Returns false if it was
+  /// already saved.
+  Future<bool> addFolder(String dir) async {
+    final d = _norm(dir);
+    if (_folders.any((f) => f.toLowerCase() == d.toLowerCase())) return false;
+    _folders.add(d);
     _prefs.setStringList('libraryFolders', _folders);
     notifyListeners();
     await scan();
+    return true;
   }
 
   Future<void> removeFolder(String dir) async {
     _folders.remove(dir);
     _prefs.setStringList('libraryFolders', _folders);
-    final norm = dir.toLowerCase();
+    // Keep files that another saved folder still covers.
     _items = [
       for (final i in _items)
-        if (!i.path.toLowerCase().startsWith(norm)) i,
+        if (_folders.any((f) => isUnder(i.path, f))) i,
     ];
     await _saveIndex();
     notifyListeners();
@@ -148,11 +179,16 @@ class LibraryService extends ChangeNotifier {
     try {
       final known = {for (final i in _items) i.path: i};
       final found = <File>[];
+      final seen = <String>{}; // overlapping folders must not list a file twice
       for (final dir in _folders) {
         await for (final e in Directory(
           dir,
         ).list(recursive: true, followLinks: false).handleError((_) {})) {
-          if (e is File && isSupportedMedia(e.path)) found.add(e);
+          if (e is File &&
+              isSupportedMedia(e.path) &&
+              seen.add(e.path.toLowerCase())) {
+            found.add(e);
+          }
         }
       }
       scanTotal = found.length;
@@ -214,12 +250,14 @@ class LibraryService extends ChangeNotifier {
   List<LibraryItem> query({
     String query = '',
     bool? video, // null = all, true = videos, false = music
+    String? folder, // null = every saved folder
     LibrarySort sort = LibrarySort.title,
   }) {
     final q = query.trim().toLowerCase();
     final out = [
       for (final i in _items)
         if ((video == null || i.isVideo == video) &&
+            (folder == null || isUnder(i.path, folder)) &&
             (q.isEmpty ||
                 i.title.toLowerCase().contains(q) ||
                 i.artist.toLowerCase().contains(q) ||

@@ -339,6 +339,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                   settings: s,
                                   controller: c,
                                   history: widget.history,
+                                  library: widget.library,
                                   onClose: () =>
                                       setState(() => _settingsOpen = false),
                                 )
