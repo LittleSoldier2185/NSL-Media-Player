@@ -6,8 +6,10 @@ import '../player_controller/player_controller.dart';
 import '../services/history_service.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
+import '../services/playlist_service.dart';
 import 'controls.dart';
 import 'library_view.dart';
+import 'playlists_view.dart';
 import 'theme.dart';
 
 /// Home + Dashboard, following the "Home + Dashboard" board of the UI design.
@@ -17,6 +19,7 @@ class HomePage extends StatefulWidget {
     required this.controller,
     required this.history,
     required this.library,
+    required this.playlists,
     required this.onOpenFile,
     required this.onOpenFolder,
     required this.onMini,
@@ -28,6 +31,7 @@ class HomePage extends StatefulWidget {
   final NslPlayerController controller;
   final HistoryService history;
   final LibraryService library;
+  final PlaylistService playlists;
   final VoidCallback onOpenFile;
   final VoidCallback onOpenFolder;
   final VoidCallback onMini;
@@ -39,7 +43,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-enum _Section { home, library }
+enum _Section { home, library, playlists }
 
 class _HomePageState extends State<HomePage> {
   _Section _section = _Section.home;
@@ -80,6 +84,14 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: _section == _Section.library
                     ? LibraryView(
+                        library: widget.library,
+                        playlists: widget.playlists,
+                        controller: widget.controller,
+                        onOpenPlayer: widget.onOpenPlayer,
+                      )
+                    : _section == _Section.playlists
+                    ? PlaylistsView(
+                        playlists: widget.playlists,
                         library: widget.library,
                         controller: widget.controller,
                         onOpenPlayer: widget.onOpenPlayer,
@@ -560,7 +572,12 @@ class _Nav extends StatelessWidget {
             active: section == _Section.library,
             onTap: () => onSelect(_Section.library),
           ),
-          item(Icons.list, 'Playlists'),
+          item(
+            Icons.list,
+            'Playlists',
+            active: section == _Section.playlists,
+            onTap: () => onSelect(_Section.playlists),
+          ),
           item(Icons.history, 'Recently played'),
           item(Icons.tune, 'Settings', onTap: onSettings),
         ],

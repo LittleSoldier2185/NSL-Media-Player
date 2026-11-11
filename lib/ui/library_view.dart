@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/library_service.dart';
+import '../services/playlist_service.dart';
 import 'controls.dart';
+import 'playlist_dialogs.dart';
 import 'theme.dart';
 
 /// The Library section: scanned folders with search, filter and sorting.
@@ -13,11 +15,13 @@ class LibraryView extends StatefulWidget {
   const LibraryView({
     super.key,
     required this.library,
+    required this.playlists,
     required this.controller,
     required this.onOpenPlayer,
   });
 
   final LibraryService library;
+  final PlaylistService playlists;
   final NslPlayerController controller;
   final VoidCallback onOpenPlayer;
 
@@ -31,7 +35,37 @@ class _LibraryViewState extends State<LibraryView> {
   String? _folder; // null = all saved folders
   LibrarySort _sort = LibrarySort.title;
 
+  /// Selection mode: tapping rows picks them instead of playing.
+  bool _selecting = false;
+  final Set<String> _selected = {};
+
   LibraryService get lib => widget.library;
+
+  void _setSelecting(bool v) => setState(() {
+    _selecting = v;
+    if (!v) _selected.clear();
+  });
+
+  void _toggle(String path) => setState(() {
+    if (!_selected.remove(path)) _selected.add(path);
+  });
+
+  void _toast(String m) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(m)));
+
+  Future<void> _enqueue(List<String> paths) async {
+    await widget.controller.addPaths(paths);
+    if (mounted) {
+      _toast(
+        'Added ${paths.length} ${paths.length == 1 ? 'file' : 'files'} '
+        'to the queue.',
+      );
+    }
+  }
+
+  Future<void> _toPlaylist(List<String> paths) =>
+      addToPlaylist(context, widget.playlists, paths);
 
   @override
   void dispose() {
@@ -198,6 +232,13 @@ class _LibraryViewState extends State<LibraryView> {
                     ],
                     onChanged: (v) => setState(() => _sort = v ?? _sort),
                   ),
+                  FilterChip(
+                    label: const Text('Select'),
+                    avatar: const Icon(Icons.checklist, size: 16),
+                    selected: _selecting,
+                    showCheckmark: false,
+                    onSelected: _setSelecting,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -219,15 +260,97 @@ class _LibraryViewState extends State<LibraryView> {
                           library: lib,
                           playing:
                               shown[i].path == widget.controller.currentPath,
-                          onTap: () => _play(shown, i),
+                          selecting: _selecting,
+                          selected: _selected.contains(shown[i].path),
+                          onTap: () => _selecting
+                              ? _toggle(shown[i].path)
+                              : _play(shown, i),
+                          onAddToQueue: () => _enqueue([shown[i].path]),
+                          onAddToPlaylist: () => _toPlaylist([shown[i].path]),
+                          onSelect: () {
+                            setState(() => _selecting = true);
+                            _toggle(shown[i].path);
+                          },
                         ),
                       ),
               ),
+              if (_selecting) _actionBar(p, shown),
               const SizedBox(height: 8),
             ],
           ),
         );
       },
+    );
+  }
+
+  /// Bar shown in selection mode: act on every picked file (any folder).
+  Widget _actionBar(NslPalette p, List<LibraryItem> shown) {
+    // Keep the order the list shows, and ignore picks hidden by a new filter.
+    final picked = [
+      for (final i in shown)
+        if (_selected.contains(i.path)) i.path,
+    ];
+    final hidden = _selected.length - picked.length;
+    final allShown = shown.isNotEmpty && picked.length == shown.length;
+    final enabled = picked.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: p.panelTop,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: p.panelBorder),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            '${picked.length} selected'
+            '${hidden > 0 ? ' (+$hidden hidden by filter)' : ''}',
+            style: TextStyle(fontSize: 13, color: p.text),
+          ),
+          TextButton(
+            onPressed: () => setState(() {
+              if (allShown) {
+                _selected.removeAll(picked);
+              } else {
+                _selected.addAll(shown.map((i) => i.path));
+              }
+            }),
+            child: Text(allShown ? 'Clear shown' : 'Select all shown'),
+          ),
+          FilledButton.icon(
+            onPressed: enabled
+                ? () async {
+                    await _toPlaylist(picked);
+                    if (mounted) _setSelecting(false);
+                  }
+                : null,
+            icon: const Icon(Icons.playlist_add, size: 18),
+            label: const Text('Add to playlist'),
+            style: FilledButton.styleFrom(
+              backgroundColor: p.accent,
+              foregroundColor: p.onAccent,
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: enabled
+                ? () async {
+                    await _enqueue(picked);
+                    if (mounted) _setSelecting(false);
+                  }
+                : null,
+            icon: const Icon(Icons.queue_music, size: 18),
+            label: const Text('Add to queue'),
+          ),
+          TextButton(
+            onPressed: () => _setSelecting(false),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -279,13 +402,23 @@ class _Row extends StatelessWidget {
     required this.item,
     required this.library,
     required this.playing,
+    required this.selecting,
+    required this.selected,
     required this.onTap,
+    required this.onAddToQueue,
+    required this.onAddToPlaylist,
+    required this.onSelect,
   });
 
   final LibraryItem item;
   final LibraryService library;
   final bool playing;
+  final bool selecting;
+  final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onAddToQueue;
+  final VoidCallback onAddToPlaylist;
+  final VoidCallback onSelect;
 
   static String _dur(int ms) {
     if (ms <= 0) return '';
@@ -309,11 +442,20 @@ class _Row extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: playing ? p.hover : null,
+          color: selected
+              ? p.accent.withValues(alpha: 0.14)
+              : playing
+              ? p.hover
+              : null,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
+            if (selecting)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Checkbox(value: selected, onChanged: (_) => onTap()),
+              ),
             _Cover(item: item, library: library),
             const SizedBox(width: 12),
             Expanded(
@@ -345,6 +487,24 @@ class _Row extends StatelessWidget {
               _dur(item.durationMs),
               style: TextStyle(fontSize: 12, color: p.textDim),
             ),
+            if (!selecting)
+              PopupMenuButton<String>(
+                tooltip: 'More',
+                icon: Icon(Icons.more_vert, size: 18, color: p.textDim),
+                onSelected: (v) => switch (v) {
+                  'queue' => onAddToQueue(),
+                  'playlist' => onAddToPlaylist(),
+                  _ => onSelect(),
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'queue', child: Text('Add to queue')),
+                  PopupMenuItem(
+                    value: 'playlist',
+                    child: Text('Add to playlist…'),
+                  ),
+                  PopupMenuItem(value: 'select', child: Text('Select…')),
+                ],
+              ),
           ],
         ),
       ),

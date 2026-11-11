@@ -12,6 +12,7 @@ import '../services/media_types.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
 import '../services/library_service.dart';
+import '../services/playlist_service.dart';
 import 'home_page.dart';
 import 'mini_player.dart';
 import 'music_view.dart';
@@ -28,6 +29,7 @@ class PlayerPage extends StatefulWidget {
     required this.settings,
     required this.history,
     required this.library,
+    required this.playlists,
     required this.initialArgs,
   });
 
@@ -35,6 +37,7 @@ class PlayerPage extends StatefulWidget {
   final AppSettings settings;
   final HistoryService history;
   final LibraryService library;
+  final PlaylistService playlists;
   final List<String> initialArgs;
 
   @override
@@ -348,6 +351,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                   controller: c,
                                   history: widget.history,
                                   library: widget.library,
+                                  playlists: widget.playlists,
                                   onOpenFile: _pickFile,
                                   onOpenFolder: _openFolderFromHome,
                                   onMini: _enterMini,
@@ -399,6 +403,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                     if (!_fullscreen && _showQueue)
                                       QueuePanel(
                                         controller: c,
+                                        playlists: widget.playlists,
                                         onAddFiles: _addFiles,
                                         onAddFolder: _addFolder,
                                       ),

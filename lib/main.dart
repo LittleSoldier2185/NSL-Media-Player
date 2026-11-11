@@ -5,6 +5,7 @@ import 'package:window_manager/legacy.dart';
 import 'player_controller/player_controller.dart';
 import 'services/history_service.dart';
 import 'services/library_service.dart';
+import 'services/playlist_service.dart';
 import 'services/settings_service.dart';
 import 'ui/player_page.dart';
 import 'ui/theme.dart';
@@ -33,12 +34,14 @@ Future<void> main(List<String> args) async {
   controller.seekStep = settings.seekStep;
   final history = HistoryService(settings.prefs, controller, settings);
   final library = LibraryService(settings.prefs);
+  final playlists = PlaylistService();
   runApp(
     NslApp(
       controller: controller,
       settings: settings,
       history: history,
       library: library,
+      playlists: playlists,
       initialArgs: args,
     ),
   );
@@ -76,6 +79,7 @@ class NslApp extends StatelessWidget {
     required this.settings,
     required this.history,
     required this.library,
+    required this.playlists,
     required this.initialArgs,
   });
 
@@ -83,6 +87,7 @@ class NslApp extends StatelessWidget {
   final AppSettings settings;
   final HistoryService history;
   final LibraryService library;
+  final PlaylistService playlists;
   final List<String> initialArgs;
 
   @override
@@ -100,6 +105,7 @@ class NslApp extends StatelessWidget {
           settings: settings,
           history: history,
           library: library,
+          playlists: playlists,
           initialArgs: initialArgs,
         ),
       ),

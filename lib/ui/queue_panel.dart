@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
+import '../services/playlist_service.dart';
+import 'playlist_dialogs.dart';
 import 'theme.dart';
 
 class QueuePanel extends StatelessWidget {
   const QueuePanel({
     super.key,
     required this.controller,
+    required this.playlists,
     required this.onAddFiles,
     required this.onAddFolder,
   });
 
   final NslPlayerController controller;
+  final PlaylistService playlists;
   final VoidCallback onAddFiles;
   final VoidCallback onAddFolder;
 
@@ -104,19 +108,36 @@ class QueuePanel extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: p.panelBorder)),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onAddFiles,
-                        child: const Text('Add files'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onAddFiles,
+                            child: const Text('Add files'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: onAddFolder,
+                            child: const Text('Add folder'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onAddFolder,
-                        child: const Text('Add folder'),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: controller.queue.isEmpty
+                            ? null
+                            : () => saveAsPlaylist(context, playlists, [
+                                for (final q in controller.queue) q.path,
+                              ]),
+                        icon: const Icon(Icons.playlist_add, size: 18),
+                        label: const Text('Save as playlist'),
                       ),
                     ),
                   ],

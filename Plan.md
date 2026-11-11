@@ -93,6 +93,12 @@ installer/
 - [x] สแกนโฟลเดอร์ แยกเพลง / วิดีโอ (`LibraryService`, หน้า Library ใน Home, cache index ที่ `%APPDATA%\NSL Media Player\library.json`)
 - [x] อ่านชื่อเพลง ศิลปิน อัลบั้ม และแสดงปก (`audio_metadata_reader`; ปกแสดงในรายการ Library แล้ว ยังไม่ขึ้นที่หน้าเล่นเพลง)
 - [x] ค้นหาและจัดเรียง library (ค้นหา title/artist/album, กรอง All/Music/Videos, เรียง Title/Artist/Album/Recently added)
+- [x] **Playlists ที่ตั้งชื่อและบันทึกได้** (`PlaylistService`, `playlists_view.dart`) ไฟล์มาจากโฟลเดอร์ไหนก็ได้
+  - [x] สร้าง/เปลี่ยนชื่อ/ลบ หลายเพลย์ลิสต์ (ชื่อไม่ซ้ำ), เก็บที่ `%APPDATA%\NSL Media Player\playlists.json`
+  - [x] Library: เมนู ⋮ ต่อแถว (Add to queue / Add to playlist) + โหมด Select เลือกหลายแถวข้ามโฟลเดอร์
+  - [x] หน้า Playlists: เล่นทั้งลิสต์/เริ่มจากเพลงที่กด, Add to queue, ลากเรียงลำดับ, ลบเพลงออก, ไฟล์ที่หายแสดงจางและข้ามตอนเล่น
+  - [x] แผงคิว: ปุ่ม "Save as playlist" บันทึกคิวปัจจุบัน
+  - [ ] ยังไม่ได้ทดสอบ UI บนเครื่องจริง (ทดสอบเฉพาะ logic ด้วย unit test และ build/เปิดแอปผ่าน)
 - [ ] แสดงปกอัลบั้มในหน้าเล่นเพลง (music view) แทนวงกลมสี
 - [x] บันทึกโฟลเดอร์เก็บสื่อได้หลายอัน: จัดการได้ทั้งในหน้า Library และ Settings > Library (เพิ่ม/ลบ/สแกนใหม่), กดชื่อโฟลเดอร์เพื่อกรองดูเฉพาะอันนั้น, กันโฟลเดอร์ซ้ำ/ซ้อนกัน
 - [x] จำตำแหน่งที่ดูค้างไว้ (resume)
