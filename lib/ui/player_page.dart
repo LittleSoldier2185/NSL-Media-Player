@@ -73,9 +73,9 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   NslPlayerController get c => widget.controller;
   AppSettings get s => widget.settings;
 
-  Size get _miniTarget => c.showVideo
-      ? Size(_miniBase.width, _miniBase.height + kMiniVideoHeight)
-      : _miniBase;
+  /// Audio: the small card. Video: picture-in-picture, shaped like the video.
+  Size get _miniTarget =>
+      c.showVideo ? miniVideoSize(c.videoAspect) : _miniBase;
 
   /// Fits the mini window to what it shows (card only, or card + picture).
   /// Safe to call often: it does nothing when the size is already right, and

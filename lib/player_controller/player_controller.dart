@@ -31,6 +31,10 @@ class NslPlayerController extends ChangeNotifier {
       _prefs?.setDouble('volume', v);
     });
     quality = _prefs?.getInt('quality') ?? 0;
+    player.stream.width.listen((w) {
+      sourceWidth = w ?? 0;
+      notifyListeners(); // the mini player window follows the picture's shape
+    });
     player.stream.height.listen((h) {
       sourceHeight = h ?? 0;
       _applyQuality();
@@ -85,6 +89,13 @@ class NslPlayerController extends ChangeNotifier {
 
   /// Height of the current video in px (0 if unknown / audio).
   int sourceHeight = 0;
+
+  /// Width of the current video in px (0 if unknown / audio).
+  int sourceWidth = 0;
+
+  /// Width / height of the current picture; 16:9 until it is known.
+  double get videoAspect =>
+      sourceWidth > 0 && sourceHeight > 0 ? sourceWidth / sourceHeight : 16 / 9;
 
   static const qualityHeights = [1080, 720, 480, 360];
 
