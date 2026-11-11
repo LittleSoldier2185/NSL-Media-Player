@@ -507,51 +507,38 @@ class _SettingsPageState extends State<SettingsPage> {
           ]),
         ];
       case _Cat.shortcuts:
-        const keys = [
-          ('Play / pause', ['Space', 'K']),
-          ('Seek back / forward', ['←', '→']),
-          ('Volume up / down', ['↑', '↓']),
-          ('Mute', ['M']),
-          ('Next / previous item', ['N', 'P']),
-          ('Fullscreen', ['F', 'F11']),
-          ('Exit fullscreen', ['Esc']),
-          ('Audio only on / off', ['A']),
-          ('Mini player', ['Ctrl', 'M']),
-          ('Open file', ['Ctrl', 'O']),
-        ];
         return [
-          _group(p, [
-            for (final (action, ks) in keys)
-              _row(
-                p,
-                action,
-                null,
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final k in ks)
-                      Container(
-                        margin: const EdgeInsets.only(left: 6),
-                        constraints: const BoxConstraints(minWidth: 32),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: p.track,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: p.border),
-                        ),
-                        child: Text(
-                          k,
-                          style: TextStyle(fontSize: 12.5, color: p.text),
-                        ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (title, items) in _shortcutSections(s, c)) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
+                    child: Text(
+                      title.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
+                        color: p.textDim,
                       ),
-                  ],
+                    ),
+                  ),
+                  _group(p, [for (final sc in items) _shortcutRow(p, sc)]),
+                  const SizedBox(height: 22),
+                ],
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    'These work in the main window and in the mini player.',
+                    style: TextStyle(fontSize: 12.5, color: p.textDim),
+                  ),
                 ),
-              ),
-          ]),
+              ],
+            ),
+          ),
         ];
       case _Cat.about:
         return [
@@ -722,6 +709,157 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ---- Building blocks ----
 
+  // ---- Shortcuts ----
+
+  static List<(String, List<_Shortcut>)> _shortcutSections(
+    AppSettings s,
+    NslPlayerController c,
+  ) => [
+    (
+      'Playback',
+      [
+        const _Shortcut('Play / pause', [
+          ['Space'],
+          ['K'],
+        ]),
+        _Shortcut('Seek back', const [
+          ['←'],
+        ], hint: '${s.seekStep} seconds'),
+        _Shortcut('Seek forward', const [
+          ['→'],
+        ], hint: '${s.seekStep} seconds'),
+        const _Shortcut('Next item', [
+          ['N'],
+        ]),
+        const _Shortcut('Previous item', [
+          ['P'],
+        ]),
+      ],
+    ),
+    (
+      'Sound',
+      [
+        const _Shortcut('Volume up', [
+          ['↑'],
+        ], hint: '5%'),
+        const _Shortcut('Volume down', [
+          ['↓'],
+        ], hint: '5%'),
+        const _Shortcut('Mute', [
+          ['M'],
+        ]),
+      ],
+    ),
+    (
+      'Window and view',
+      [
+        const _Shortcut('Fullscreen', [
+          ['F'],
+          ['F11'],
+        ]),
+        const _Shortcut('Exit fullscreen', [
+          ['Esc'],
+        ]),
+        const _Shortcut('Audio only on / off', [
+          ['A'],
+        ], hint: 'Stops decoding the picture to save CPU and GPU'),
+        const _Shortcut('Mini player', [
+          ['Ctrl', 'M'],
+        ]),
+      ],
+    ),
+    (
+      'Files',
+      [
+        const _Shortcut('Open file', [
+          ['Ctrl', 'O'],
+        ]),
+      ],
+    ),
+  ];
+
+  Widget _shortcutRow(NslPalette p, _Shortcut sc) {
+    final alts = <Widget>[];
+    for (var i = 0; i < sc.alternatives.length; i++) {
+      if (i > 0) {
+        alts.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text('or', style: TextStyle(fontSize: 12, color: p.textDim)),
+          ),
+        );
+      }
+      final combo = sc.alternatives[i];
+      for (var k = 0; k < combo.length; k++) {
+        if (k > 0) {
+          alts.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                '+',
+                style: TextStyle(fontSize: 12, color: p.textDim),
+              ),
+            ),
+          );
+        }
+        alts.add(_keyCap(p, combo[k]));
+      }
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sc.action,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: p.text,
+                  ),
+                ),
+                if (sc.hint != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      sc.hint!,
+                      style: TextStyle(fontSize: 12, color: p.textDim),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Row(mainAxisSize: MainAxisSize.min, children: alts),
+        ],
+      ),
+    );
+  }
+
+  /// A key drawn like a keyboard key (raised, with a lower edge).
+  Widget _keyCap(NslPalette p, String label) => Container(
+    constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: p.track,
+      borderRadius: BorderRadius.circular(7),
+      border: Border.all(color: p.border),
+      boxShadow: [BoxShadow(color: p.border, offset: const Offset(0, 2))],
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        color: p.text,
+      ),
+    ),
+  );
+
   Widget _card(NslPalette p, Widget child) => Container(
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(14),
@@ -740,6 +878,9 @@ class _SettingsPageState extends State<SettingsPage> {
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
+        // Full-width rows: otherwise each row shrinks to its content and sits
+        // in the middle with a divider of its own length.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < rows.length; i++)
             DecoratedBox(
@@ -940,4 +1081,14 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     );
   }
+}
+
+/// One keyboard shortcut: what it does and the key(s) that trigger it. Each
+/// entry of [alternatives] is one way to do it; keys inside it are pressed
+/// together (so `['Ctrl', 'M']` is Ctrl + M, and two entries are "A or B").
+class _Shortcut {
+  const _Shortcut(this.action, this.alternatives, {this.hint});
+  final String action;
+  final List<List<String>> alternatives;
+  final String? hint;
 }
