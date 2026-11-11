@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -7,6 +5,7 @@ import '../player_controller/player_controller.dart';
 import '../services/library_service.dart';
 import '../services/playlist_service.dart';
 import 'controls.dart';
+import 'library_items.dart';
 import 'playlist_dialogs.dart';
 import 'theme.dart';
 
@@ -239,6 +238,23 @@ class _LibraryViewState extends State<LibraryView> {
                     showCheckmark: false,
                     onSelected: _setSelecting,
                   ),
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: false,
+                        icon: Icon(Icons.view_list, size: 18),
+                        tooltip: 'List',
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        icon: Icon(Icons.grid_view, size: 18),
+                        tooltip: 'Grid',
+                      ),
+                    ],
+                    selected: {lib.gridView},
+                    onSelectionChanged: (v) => lib.gridView = v.first,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -252,25 +268,31 @@ class _LibraryViewState extends State<LibraryView> {
                           style: TextStyle(fontSize: 13, color: p.textDim),
                         ),
                       )
+                    : lib.gridView
+                    ? GridView.builder(
+                        // Only the tiles on screen are built, so only those
+                        // ask for thumbnails.
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 220,
+                              mainAxisExtent: 196,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                            ),
+                        itemCount: shown.length,
+                        itemBuilder: (_, i) => LibraryTile(
+                          item: shown[i],
+                          library: lib,
+                          actions: _actionsFor(shown, i),
+                        ),
+                      )
                     : ListView.builder(
                         itemCount: shown.length,
                         itemExtent: 60,
-                        itemBuilder: (_, i) => _Row(
+                        itemBuilder: (_, i) => LibraryRow(
                           item: shown[i],
                           library: lib,
-                          playing:
-                              shown[i].path == widget.controller.currentPath,
-                          selecting: _selecting,
-                          selected: _selected.contains(shown[i].path),
-                          onTap: () => _selecting
-                              ? _toggle(shown[i].path)
-                              : _play(shown, i),
-                          onAddToQueue: () => _enqueue([shown[i].path]),
-                          onAddToPlaylist: () => _toPlaylist([shown[i].path]),
-                          onSelect: () {
-                            setState(() => _selecting = true);
-                            _toggle(shown[i].path);
-                          },
+                          actions: _actionsFor(shown, i),
                         ),
                       ),
               ),
@@ -279,6 +301,23 @@ class _LibraryViewState extends State<LibraryView> {
             ],
           ),
         );
+      },
+    );
+  }
+
+  /// What a row / tile does, shared by the list and the grid.
+  ItemActions _actionsFor(List<LibraryItem> shown, int i) {
+    final path = shown[i].path;
+    return ItemActions(
+      playing: path == widget.controller.currentPath,
+      selecting: _selecting,
+      selected: _selected.contains(path),
+      onTap: () => _selecting ? _toggle(path) : _play(shown, i),
+      onAddToQueue: () => _enqueue([path]),
+      onAddToPlaylist: () => _toPlaylist([path]),
+      onSelect: () {
+        setState(() => _selecting = true);
+        _toggle(path);
       },
     );
   }
@@ -393,165 +432,6 @@ class _LibraryViewState extends State<LibraryView> {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  const _Row({
-    required this.item,
-    required this.library,
-    required this.playing,
-    required this.selecting,
-    required this.selected,
-    required this.onTap,
-    required this.onAddToQueue,
-    required this.onAddToPlaylist,
-    required this.onSelect,
-  });
-
-  final LibraryItem item;
-  final LibraryService library;
-  final bool playing;
-  final bool selecting;
-  final bool selected;
-  final VoidCallback onTap;
-  final VoidCallback onAddToQueue;
-  final VoidCallback onAddToPlaylist;
-  final VoidCallback onSelect;
-
-  static String _dur(int ms) {
-    if (ms <= 0) return '';
-    final d = Duration(milliseconds: ms);
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return d.inHours > 0
-        ? '${d.inHours}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:$s'
-        : '${d.inMinutes}:$s';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.pal;
-    final sub = [
-      if (item.artist.isNotEmpty) item.artist,
-      if (item.album.isNotEmpty) item.album,
-    ].join(' · ');
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? p.accent.withValues(alpha: 0.14)
-              : playing
-              ? p.hover
-              : null,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            if (selecting)
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Checkbox(value: selected, onChanged: (_) => onTap()),
-              ),
-            _Cover(item: item, library: library),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: playing ? p.accentInk : p.text,
-                    ),
-                  ),
-                  if (sub.isNotEmpty)
-                    Text(
-                      sub,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: p.textDim),
-                    ),
-                ],
-              ),
-            ),
-            Text(
-              _dur(item.durationMs),
-              style: TextStyle(fontSize: 12, color: p.textDim),
-            ),
-            if (!selecting)
-              PopupMenuButton<String>(
-                tooltip: 'More',
-                icon: Icon(Icons.more_vert, size: 18, color: p.textDim),
-                onSelected: (v) => switch (v) {
-                  'queue' => onAddToQueue(),
-                  'playlist' => onAddToPlaylist(),
-                  _ => onSelect(),
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'queue', child: Text('Add to queue')),
-                  PopupMenuItem(
-                    value: 'playlist',
-                    child: Text('Add to playlist…'),
-                  ),
-                  PopupMenuItem(value: 'select', child: Text('Select…')),
-                ],
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Cover extends StatelessWidget {
-  const _Cover({required this.item, required this.library});
-  final LibraryItem item;
-  final LibraryService library;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.pal;
-    final fallback = Icon(
-      item.isVideo ? Icons.movie_outlined : Icons.music_note,
-      size: 20,
-      color: p.textDim,
-    );
-    return Container(
-      width: 44,
-      height: 44,
-      clipBehavior: Clip.antiAlias,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: p.track,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: item.isVideo
-          ? fallback
-          : FutureBuilder<Uint8List?>(
-              future: library.coverFor(item.path),
-              builder: (_, s) {
-                final b = s.data;
-                if (b == null) return fallback;
-                return Image.memory(
-                  b,
-                  width: 44,
-                  height: 44,
-                  fit: BoxFit.cover,
-                  cacheWidth: 88,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, _, _) => fallback,
-                );
-              },
-            ),
     );
   }
 }

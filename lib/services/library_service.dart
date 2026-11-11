@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'media_types.dart';
+import 'thumbnail_service.dart';
 
 /// One file in the library with its tags.
 class LibraryItem {
@@ -64,13 +64,18 @@ enum LibrarySort { title, artist, album, recent }
 /// next start; a rescan only re-reads tags of new or changed files.
 class LibraryService extends ChangeNotifier {
   /// [indexFile] overrides where the index is cached (used by tests).
-  LibraryService(this._prefs, {File? indexFile}) : _indexOverride = indexFile {
+  LibraryService(this._prefs, {File? indexFile, ThumbnailService? thumbnails})
+    : _indexOverride = indexFile,
+      thumbnails = thumbnails ?? ThumbnailService() {
     _folders.addAll(_prefs.getStringList('libraryFolders') ?? const []);
     _loadIndex();
   }
 
   final SharedPreferences _prefs;
   final File? _indexOverride;
+
+  /// Preview pictures (cover art / video frames) for the files in the library.
+  final ThumbnailService thumbnails;
   final List<String> _folders = [];
   List<LibraryItem> _items = [];
 
@@ -284,27 +289,13 @@ class LibraryService extends ChangeNotifier {
   int get musicCount => _items.where((i) => !i.isVideo).length;
   int get videoCount => _items.where((i) => i.isVideo).length;
 
-  // ---- cover art ----
+  // ---- view mode ----
 
-  static const _coverCacheMax = 200;
-  final Map<String, Uint8List?> _covers = {}; // insertion order = LRU order
+  /// Library shown as a grid of thumbnails instead of a list.
+  bool get gridView => _prefs.getBool('libraryGrid') ?? false;
 
-  /// Embedded cover art of [path], or null. Read lazily and cached in memory.
-  Future<Uint8List?> coverFor(String path) async {
-    if (_covers.containsKey(path)) {
-      final v = _covers.remove(path);
-      _covers[path] = v;
-      return v;
-    }
-    Uint8List? bytes;
-    try {
-      final m = readMetadata(File(path), getImage: true);
-      if (m.pictures.isNotEmpty) bytes = m.pictures.first.bytes;
-    } on Object {
-      bytes = null;
-    }
-    _covers[path] = bytes;
-    if (_covers.length > _coverCacheMax) _covers.remove(_covers.keys.first);
-    return bytes;
+  set gridView(bool v) {
+    _prefs.setBool('libraryGrid', v);
+    notifyListeners();
   }
 }

@@ -92,6 +92,10 @@ installer/
 ### Milestone 4 — Library และ metadata
 - [x] สแกนโฟลเดอร์ แยกเพลง / วิดีโอ (`LibraryService`, หน้า Library ใน Home, cache index ที่ `%APPDATA%\NSL Media Player\library.json`)
 - [x] อ่านชื่อเพลง ศิลปิน อัลบั้ม และแสดงปก (`audio_metadata_reader`; ปกแสดงในรายการ Library แล้ว ยังไม่ขึ้นที่หน้าเล่นเพลง)
+- [x] **Thumbnail ใน Library** (`ThumbnailService`): ปกอัลบั้มที่ฝังในไฟล์ (หรือ cover.jpg/folder.jpg ในโฟลเดอร์) สำหรับเพลง, เฟรมที่ 10% ของไฟล์สำหรับวิดีโอ (ดึงด้วย media_kit แบบไม่มีหน้าต่าง), cache บนดิสก์ที่ `%APPDATA%\NSL Media Player\thumbs` (PNG 256px) + memory, คิวทำทีละวิดีโอ/ข้ามแถวที่เลื่อนผ่าน, ปุ่ม Clear thumbnails ใน Settings > Library
+- [x] **Grid view ใน Library**: สลับ List/Grid (จำค่าไว้), การ์ด 16:9 พร้อม badge ความยาว, เลือกหลายรายการ/เมนู ⋮ ใช้ได้ทั้งสองโหมด
+  - [ ] ยังไม่ได้ทดสอบ UI บนเครื่องจริง (ทดสอบ logic ด้วย unit test และการดึงเฟรมวิดีโอจริงด้วยโปรแกรมทดลองแล้ว)
+  - [ ] Playlists ยังไม่แสดง thumbnail (ใช้ไอคอน)
 - [x] ค้นหาและจัดเรียง library (ค้นหา title/artist/album, กรอง All/Music/Videos, เรียง Title/Artist/Album/Recently added)
 - [x] **Playlists ที่ตั้งชื่อและบันทึกได้** (`PlaylistService`, `playlists_view.dart`) ไฟล์มาจากโฟลเดอร์ไหนก็ได้
   - [x] สร้าง/เปลี่ยนชื่อ/ลบ หลายเพลย์ลิสต์ (ชื่อไม่ซ้ำ), เก็บที่ `%APPDATA%\NSL Media Player\playlists.json`
@@ -109,6 +113,7 @@ installer/
 - [ ] Media keys + SMTC (ชื่อเพลงในแผงควบคุมเสียงของ Windows)
 - [x] โหมดเพลง (โชว์ปกอัลบั้ม) แยกจากโหมดวิดีโอ
 - [x] Mini player (หน้าต่างเล็ก always-on-top)
+  - [x] แสดงภาพวิดีโอใน mini player ได้ (Settings > Mini player > Show video, ค่าเริ่มต้นเปิด) หน้าต่างขยาย/หดตามชนิดไฟล์อัตโนมัติ มีปุ่มสลับภาพ/เสียงอย่างเดียวบนแถบหัวการ์ด (ยังไม่ได้ทดสอบบนเครื่องจริง)
   - [x] ปรับความโปร่งใสได้ (slider) ผ่าน `window_manager` → `setOpacity(0.0–1.0)`
   - [x] จำค่าความโปร่งใสและตำแหน่งหน้าต่างของ mini player
   - [ ] (ทางเลือก) เอฟเฟกต์ blur / Mica / Acrylic ด้วย `flutter_acrylic`

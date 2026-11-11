@@ -72,6 +72,9 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   _Cat _cat = _Cat.general;
+
+  /// Size of the thumbnail cache; re-read after clearing.
+  late Future<int> _thumbSize = widget.library.thumbnails.cacheSizeBytes();
   late final _hex = TextEditingController(text: _toHex(widget.settings.accent));
 
   AppSettings get s => widget.settings;
@@ -354,6 +357,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             _toggle(
               p,
+              'Show video',
+              'Show the picture of videos in the mini player. Turn off to play '
+                  'sound only, which uses less CPU and GPU.',
+              s.miniShowVideo,
+              (v) => s.put('miniShowVideo', v),
+            ),
+            _toggle(
+              p,
               'Remember position',
               'Reopen the mini player at its last place on screen.',
               s.miniRememberPos,
@@ -421,6 +432,38 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: const Text('Remove'),
                 ),
               ),
+          ]),
+          const SizedBox(height: 16),
+          _group(p, [
+            FutureBuilder<int>(
+              future: _thumbSize,
+              builder: (context, snap) {
+                final bytes = snap.data;
+                return _row(
+                  p,
+                  'Thumbnails',
+                  'Cover art and video frames shown in the Library are saved '
+                      'so they load fast. '
+                      '${bytes == null ? '' : 'Using ${(bytes / 1048576).toStringAsFixed(1)} MB. '}'
+                      'Clear them if a picture looks wrong; they are rebuilt '
+                      'as you browse.',
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                    ),
+                    onPressed: () async {
+                      await widget.library.thumbnails.clearCache();
+                      if (!mounted) return;
+                      setState(
+                        () => _thumbSize = widget.library.thumbnails
+                            .cacheSizeBytes(),
+                      );
+                    },
+                    child: const Text('Clear thumbnails'),
+                  ),
+                );
+              },
+            ),
           ]),
           const SizedBox(height: 16),
           _group(p, [
