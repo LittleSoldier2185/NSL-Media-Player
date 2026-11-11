@@ -13,7 +13,16 @@
 - `flutter analyze` รันได้แล้ว: ไม่มี error/warning เหลือแค่ info เรื่อง `windowManager` deprecated (legacy API)
 - `flutter build windows --release` ผ่าน และเปิด exe ได้ไม่ค้าง (ตรวจแค่ว่าหน้าต่างขึ้น ไม่ได้กดทดสอบฟีเจอร์)
 
+- **Library (Milestone 4)**: `lib/services/library_service.dart` + `lib/ui/library_view.dart` เพิ่มโฟลเดอร์ → สแกน (เฉพาะไฟล์ใหม่/ที่แก้ไขจะอ่าน tag ใหม่) → ค้นหา/กรอง/เรียง/ปกอัลบั้ม กดแถวเพื่อเล่นทั้งรายการที่กรองอยู่ มี unit test 6 ข้อ (`test/library_service_test.dart`)
+- **แก้บั๊ก `fileNameOf`**: regex `[\/]` ไม่ตัด `\` ของ Windows ทำให้ชื่อในคิว/ประวัติเป็น path เต็ม (เจอจากเทสต์) แก้เป็น `[\\/]`
+- Installer คอมไพล์ผ่านแล้ว (`installer\Output\NSL-Media-Player-Setup.exe`) แต่ยังไม่ได้ติดตั้งทดสอบ
+
+### ข้อจำกัดของ Library ที่รู้
+- อ่าน tag แบบ synchronous บน UI isolate (แบ่ง yield ทุก 20 ไฟล์) ไลบรารีใหญ่หลักพันไฟล์อาจกระตุกตอนสแกนครั้งแรก ถ้าเจอให้ย้ายไป isolate
+- ไฟล์วิดีโอแสดงด้วยชื่อไฟล์ ไม่อ่าน tag/ไม่มี thumbnail
+
 ### ยังไม่ได้ยืนยันบนเครื่องจริง (ต้องกดทดสอบเอง)
+- หน้า Library: เพิ่มโฟลเดอร์จริง, ปกขึ้นไหม, ค้นหา/เรียง, กดเล่นแล้วเด้งไปหน้าเล่น
 - Mini player หลังเพิ่มความสูง: แถบ seek ยังซ้อนกับ Opacity หรือไม่
 - Open file / Open folder / ลากไฟล์วาง (file_picker 6.2.1)
 - Hardware decoding และ "เล่นต่ออัตโนมัติ"

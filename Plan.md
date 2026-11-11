@@ -90,9 +90,11 @@ installer/
 > หมายเหตุ: Windows 10/11 ไม่อนุญาตให้โปรแกรมตั้งตัวเองเป็น default อัตโนมัติ ผู้ใช้ต้องเลือกเองในหน้า Default apps
 
 ### Milestone 4 — Library และ metadata
-- [ ] สแกนโฟลเดอร์ แยกเพลง / วิดีโอ
-- [ ] อ่านชื่อเพลง ศิลปิน อัลบั้ม และแสดงปก
-- [ ] ค้นหาและจัดเรียง library
+- [x] สแกนโฟลเดอร์ แยกเพลง / วิดีโอ (`LibraryService`, หน้า Library ใน Home, cache index ที่ `%APPDATA%\NSL Media Player\library.json`)
+- [x] อ่านชื่อเพลง ศิลปิน อัลบั้ม และแสดงปก (`audio_metadata_reader`; ปกแสดงในรายการ Library แล้ว ยังไม่ขึ้นที่หน้าเล่นเพลง)
+- [x] ค้นหาและจัดเรียง library (ค้นหา title/artist/album, กรอง All/Music/Videos, เรียง Title/Artist/Album/Recently added)
+- [ ] แสดงปกอัลบั้มในหน้าเล่นเพลง (music view) แทนวงกลมสี
+- [ ] ย้ายการจัดการโฟลเดอร์ Library ไปไว้ใน Settings > Library ด้วย (ตอนนี้จัดการในหน้า Library)
 - [x] จำตำแหน่งที่ดูค้างไว้ (resume)
 - [x] **หน้า Home + Dashboard** (ตามบอร์ด "Home + Dashboard" ในดีไซน์): หน้าแรกของแอปแสดงรายการล่าสุด / ดูต่อ / library
 

@@ -21,7 +21,7 @@ String? firstMediaArg(Iterable<String> args) {
   return null;
 }
 
-String fileNameOf(String path) => path.split(RegExp(r'[\/]')).last;
+String fileNameOf(String path) => path.split(RegExp(r'[\\/]')).last;
 
 /// Supported media files in [dir] (recursive), sorted by path.
 List<String> mediaInFolder(String dir) {

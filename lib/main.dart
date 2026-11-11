@@ -4,6 +4,7 @@ import 'package:window_manager/legacy.dart';
 
 import 'player_controller/player_controller.dart';
 import 'services/history_service.dart';
+import 'services/library_service.dart';
 import 'services/settings_service.dart';
 import 'ui/player_page.dart';
 import 'ui/theme.dart';
@@ -31,11 +32,13 @@ Future<void> main(List<String> args) async {
   final controller = NslPlayerController(settings.prefs);
   controller.seekStep = settings.seekStep;
   final history = HistoryService(settings.prefs, controller, settings);
+  final library = LibraryService(settings.prefs);
   runApp(
     NslApp(
       controller: controller,
       settings: settings,
       history: history,
+      library: library,
       initialArgs: args,
     ),
   );
@@ -72,12 +75,14 @@ class NslApp extends StatelessWidget {
     required this.controller,
     required this.settings,
     required this.history,
+    required this.library,
     required this.initialArgs,
   });
 
   final NslPlayerController controller;
   final AppSettings settings;
   final HistoryService history;
+  final LibraryService library;
   final List<String> initialArgs;
 
   @override
@@ -94,6 +99,7 @@ class NslApp extends StatelessWidget {
           controller: controller,
           settings: settings,
           history: history,
+          library: library,
           initialArgs: initialArgs,
         ),
       ),

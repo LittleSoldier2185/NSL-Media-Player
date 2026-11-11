@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/history_service.dart';
+import '../services/library_service.dart';
 import '../services/media_types.dart';
 import 'controls.dart';
+import 'library_view.dart';
 import 'theme.dart';
 
 /// Home + Dashboard, following the "Home + Dashboard" board of the UI design.
@@ -14,6 +16,7 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.controller,
     required this.history,
+    required this.library,
     required this.onOpenFile,
     required this.onOpenFolder,
     required this.onMini,
@@ -24,6 +27,7 @@ class HomePage extends StatefulWidget {
 
   final NslPlayerController controller;
   final HistoryService history;
+  final LibraryService library;
   final VoidCallback onOpenFile;
   final VoidCallback onOpenFolder;
   final VoidCallback onMini;
@@ -35,7 +39,10 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+enum _Section { home, library }
+
 class _HomePageState extends State<HomePage> {
+  _Section _section = _Section.home;
   bool _table = false;
   int? _hover;
 
@@ -65,28 +72,38 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: Row(
             children: [
-              _Nav(onSettings: widget.onSettings),
+              _Nav(
+                section: _section,
+                onSelect: (s) => setState(() => _section = s),
+                onSettings: widget.onSettings,
+              ),
               Expanded(
-                child: ListenableBuilder(
-                  listenable: widget.history,
-                  builder: (context, _) => SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _header(p),
-                        const SizedBox(height: 28),
-                        _continue(p),
-                        const SizedBox(height: 28),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [_week(p), _library(p)],
+                child: _section == _Section.library
+                    ? LibraryView(
+                        library: widget.library,
+                        controller: widget.controller,
+                        onOpenPlayer: widget.onOpenPlayer,
+                      )
+                    : ListenableBuilder(
+                        listenable: widget.history,
+                        builder: (context, _) => SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _header(p),
+                              const SizedBox(height: 28),
+                              _continue(p),
+                              const SizedBox(height: 28),
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 16,
+                                children: [_week(p), _library(p)],
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
+                      ),
               ),
             ],
           ),
@@ -459,7 +476,13 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _Nav extends StatelessWidget {
-  const _Nav({required this.onSettings});
+  const _Nav({
+    required this.section,
+    required this.onSelect,
+    required this.onSettings,
+  });
+  final _Section section;
+  final ValueChanged<_Section> onSelect;
   final VoidCallback onSettings;
 
   @override
@@ -525,8 +548,18 @@ class _Nav extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          item(Icons.home_outlined, 'Home', active: true),
-          item(Icons.folder_outlined, 'Library'),
+          item(
+            Icons.home_outlined,
+            'Home',
+            active: section == _Section.home,
+            onTap: () => onSelect(_Section.home),
+          ),
+          item(
+            Icons.folder_outlined,
+            'Library',
+            active: section == _Section.library,
+            onTap: () => onSelect(_Section.library),
+          ),
           item(Icons.list, 'Playlists'),
           item(Icons.history, 'Recently played'),
           item(Icons.tune, 'Settings', onTap: onSettings),
