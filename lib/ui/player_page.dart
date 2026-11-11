@@ -21,6 +21,8 @@ import 'mini_player.dart';
 import 'music_view.dart';
 import 'queue_panel.dart';
 import 'settings_page.dart';
+import 'shortcut_guard.dart';
+import 'sidebar.dart';
 import 'controls.dart';
 import 'theme.dart';
 import 'title_bar.dart';
@@ -75,6 +77,66 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   void _showPlayer() {
     if (_miniOpen) return;
     setState(() => _home = false);
+  }
+
+  // ---- sidebar / navigation ----
+
+  /// Which hub page (Home, Library, Playlists) is shown while [_home] is true.
+  NavDest _section = NavDest.home;
+
+  /// What was showing before the sidebar was hidden, to bring back.
+  SidebarMode _sidebarBeforeHide = SidebarMode.open;
+
+  final _pageFocus = FocusNode(debugLabel: 'page');
+
+  NavDest get _dest => _settingsOpen
+      ? NavDest.settings
+      : _home
+      ? _section
+      : NavDest.player;
+
+  SidebarMode get _sidebar => SidebarMode.parse(s.sidebarMode);
+
+  void _navigate(NavDest d) {
+    setState(() {
+      switch (d) {
+        case NavDest.settings:
+          _settingsOpen = true;
+        case NavDest.player:
+          _settingsOpen = false;
+          if (!_miniOpen) _home = false;
+        case NavDest.home || NavDest.library || NavDest.playlists:
+          _settingsOpen = false;
+          _home = true;
+          _section = d;
+      }
+    });
+  }
+
+  /// Menu button / Ctrl+B: hide the sidebar, or bring back what was there.
+  void _toggleSidebarHidden() {
+    final now = _sidebar;
+    if (now == SidebarMode.hidden) {
+      s.sidebarMode = _sidebarBeforeHide.name;
+    } else {
+      _sidebarBeforeHide = now;
+      s.sidebarMode = SidebarMode.hidden.name;
+    }
+  }
+
+  /// Sidebar arrow: icons and names <-> icons only.
+  void _toggleSidebarWide() {
+    s.sidebarMode =
+        (_sidebar == SidebarMode.open ? SidebarMode.rail : SidebarMode.open)
+            .name;
+  }
+
+  /// After a click outside a text field, focus falls back to the page's
+  /// scope, where the keyboard shortcuts do not reach. Give it back.
+  void _restoreFocus() {
+    if (!mounted) return;
+    final f = FocusManager.instance.primaryFocus;
+    if (f != null && f == FocusScope.of(context)) _pageFocus.requestFocus();
   }
 
   /// True when audio-only was switched on by minimizing (not by the user).
@@ -457,6 +519,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_restoreFocus);
+    _pageFocus.dispose();
     _resizeDebounce?.cancel();
     for (final sub in _miniSubs) {
       sub.cancel();
@@ -473,6 +537,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     windowManager.addListener(this);
     c.addListener(_onControllerChanged);
     widget.miniHost?.addListener(_onMiniHost);
+    FocusManager.instance.addListener(_restoreFocus);
     if (widget.miniChild != null) {
       // The separate mini player: play what the main window handed over.
       unawaited(_bootMiniProcess());
@@ -556,6 +621,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         _pickFile();
       case 'mini':
         _mini ? _exitMini() : _openMini();
+      case 'home':
+        _navigate(NavDest.home);
+      case 'sidebar':
+        _toggleSidebarHidden();
       case 'next':
         c.next();
       case 'prev':
@@ -586,17 +655,21 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         SingleActivator(LogicalKeyboardKey.keyO, control: true): _NslIntent(
           'open',
         ),
+        SingleActivator(LogicalKeyboardKey.keyH): _NslIntent('home'),
+        SingleActivator(LogicalKeyboardKey.keyB, control: true): _NslIntent(
+          'sidebar',
+        ),
       },
       child: Actions(
         actions: {
-          _NslIntent: CallbackAction<_NslIntent>(
-            onInvoke: (i) {
-              _onShortcut(i.name);
-              return null;
-            },
+          // Plain keys step aside while the user types in a text field.
+          _NslIntent: GuardedAction<_NslIntent>(
+            onInvoke: (i) => _onShortcut(i.name),
+            isPlainKey: (i) => i.plain,
           ),
         },
         child: Focus(
+          focusNode: _pageFocus,
           autofocus: true,
           child: DropTarget(
             onEnter: (_) => setState(() => _dragging = true),
@@ -646,88 +719,133 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                             listenable: c,
                             builder: (_, _) => NslTitleBar(
                               title: c.title,
-                              onHome: _home && !_settingsOpen
-                                  ? null
-                                  : () => setState(() {
-                                      _home = true;
-                                      _settingsOpen = false;
-                                    }),
+                              onMenu: _toggleSidebarHidden,
+                              onLogo: () => _navigate(NavDest.home),
                             ),
                           ),
                         Expanded(
-                          child: _settingsOpen
-                              ? SettingsPage(
-                                  settings: s,
-                                  controller: c,
-                                  history: widget.history,
-                                  library: widget.library,
-                                  onClose: () =>
-                                      setState(() => _settingsOpen = false),
-                                )
-                              : _home
-                              ? HomePage(
-                                  controller: c,
-                                  history: widget.history,
-                                  library: widget.library,
-                                  playlists: widget.playlists,
-                                  onOpenFile: _pickFile,
-                                  onOpenFolder: _openFolderFromHome,
-                                  onMini: _openMini,
-                                  onSettings: _openSettings,
-                                  onOpenPlayer: _showPlayer,
-                                  miniHost: widget.miniHost,
-                                  onResume: _resume,
-                                )
-                              : Row(
-                                  children: [
-                                    Expanded(
-                                      child: ListenableBuilder(
-                                        listenable: c,
-                                        builder: (context, _) {
-                                          final openSettings = _openSettings;
-                                          void toggleQueue() => setState(
-                                            () => _showQueue = !_showQueue,
-                                          );
-                                          // Audio files and audio-only use the music layout.
-                                          if (c.current != null &&
-                                              !c.showVideo) {
-                                            return MusicView(
-                                              controller: c,
-                                              onOpen: _pickFile,
-                                              onSettings: openSettings,
-                                              onToggleQueue: toggleQueue,
-                                              onFullscreen: _toggleFullscreen,
-                                              onMini: _openMini,
-                                            );
-                                          }
-                                          return Column(
-                                            children: [
-                                              Expanded(child: _buildStage()),
-                                              if (!_fullscreen)
-                                                ControlsBar(
-                                                  controller: c,
-                                                  onOpen: _pickFile,
-                                                  onFullscreen:
-                                                      _toggleFullscreen,
-                                                  onSettings: openSettings,
-                                                  onToggleQueue: toggleQueue,
-                                                  onMini: _openMini,
-                                                ),
-                                            ],
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    if (!_fullscreen && _showQueue)
-                                      QueuePanel(
-                                        controller: c,
-                                        playlists: widget.playlists,
-                                        thumbnails: widget.library.thumbnails,
-                                        onAddFiles: _addFiles,
-                                        onAddFolder: _addFolder,
-                                      ),
-                                  ],
+                          child: Row(
+                            children: [
+                              // Sidebar: hidden in fullscreen; icons only
+                              // in a narrow window so the content keeps room.
+                              if (!_fullscreen)
+                                Builder(
+                                  builder: (context) {
+                                    final narrow =
+                                        MediaQuery.sizeOf(context).width < 760;
+                                    final mode =
+                                        narrow && _sidebar == SidebarMode.open
+                                        ? SidebarMode.rail
+                                        : _sidebar;
+                                    return AppSidebar(
+                                      mode: mode,
+                                      current: _dest,
+                                      onSelect: _navigate,
+                                      onToggleWide: _toggleSidebarWide,
+                                    );
+                                  },
                                 ),
+                              Expanded(
+                                child: _settingsOpen
+                                    ? SettingsPage(
+                                        settings: s,
+                                        controller: c,
+                                        history: widget.history,
+                                        library: widget.library,
+                                        onClose: () => setState(
+                                          () => _settingsOpen = false,
+                                        ),
+                                      )
+                                    : _home
+                                    ? HomePage(
+                                        controller: c,
+                                        history: widget.history,
+                                        library: widget.library,
+                                        playlists: widget.playlists,
+                                        onOpenFile: _pickFile,
+                                        onOpenFolder: _openFolderFromHome,
+                                        onMini: _openMini,
+                                        section: _section,
+                                        onOpenPlayer: _showPlayer,
+                                        miniHost: widget.miniHost,
+                                        onResume: _resume,
+                                      )
+                                    : Row(
+                                        children: [
+                                          Expanded(
+                                            child: _HomeOverlay(
+                                              controller: c,
+                                              // The sidebar (which has Home) is hidden, or this is fullscreen.
+                                              enabled:
+                                                  _fullscreen ||
+                                                  _sidebar ==
+                                                      SidebarMode.hidden,
+                                              fullscreen: _fullscreen,
+                                              onHome: () =>
+                                                  _navigate(NavDest.home),
+                                              onExitFullscreen: () =>
+                                                  _toggleFullscreen(false),
+                                              child: ListenableBuilder(
+                                                listenable: c,
+                                                builder: (context, _) {
+                                                  final openSettings =
+                                                      _openSettings;
+                                                  void toggleQueue() =>
+                                                      setState(
+                                                        () => _showQueue =
+                                                            !_showQueue,
+                                                      );
+                                                  // Audio files and audio-only use the music layout.
+                                                  if (c.current != null &&
+                                                      !c.showVideo) {
+                                                    return MusicView(
+                                                      controller: c,
+                                                      onOpen: _pickFile,
+                                                      onSettings: openSettings,
+                                                      onToggleQueue:
+                                                          toggleQueue,
+                                                      onFullscreen:
+                                                          _toggleFullscreen,
+                                                      onMini: _openMini,
+                                                    );
+                                                  }
+                                                  return Column(
+                                                    children: [
+                                                      Expanded(
+                                                        child: _buildStage(),
+                                                      ),
+                                                      if (!_fullscreen)
+                                                        ControlsBar(
+                                                          controller: c,
+                                                          onOpen: _pickFile,
+                                                          onFullscreen:
+                                                              _toggleFullscreen,
+                                                          onSettings:
+                                                              openSettings,
+                                                          onToggleQueue:
+                                                              toggleQueue,
+                                                          onMini: _openMini,
+                                                        ),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          if (!_fullscreen && _showQueue)
+                                            QueuePanel(
+                                              controller: c,
+                                              playlists: widget.playlists,
+                                              thumbnails:
+                                                  widget.library.thumbnails,
+                                              onAddFiles: _addFiles,
+                                              onAddFolder: _addFolder,
+                                            ),
+                                        ],
+                                      ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -779,6 +897,9 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 class _NslIntent extends Intent {
   const _NslIntent(this.name);
   final String name;
+
+  /// A single key with no Ctrl: must not fire while the user is typing.
+  bool get plain => !const {'mini', 'open', 'sidebar'}.contains(name);
 }
 
 class _MusicView extends StatelessWidget {
@@ -846,4 +967,202 @@ class _EmptyState extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Wraps the player area. While the sidebar is hidden (or in fullscreen) a
+/// "Home" button floats over the top-left of the picture. It shows when the
+/// mouse moves or while paused, and fades out, with the cursor, a few seconds
+/// after the mouse stops while playing.
+class _HomeOverlay extends StatefulWidget {
+  const _HomeOverlay({
+    required this.controller,
+    required this.enabled,
+    required this.fullscreen,
+    required this.onHome,
+    required this.onExitFullscreen,
+    required this.child,
+  });
+
+  final NslPlayerController controller;
+  final bool enabled;
+  final bool fullscreen;
+  final VoidCallback onHome;
+  final VoidCallback onExitFullscreen;
+  final Widget child;
+
+  @override
+  State<_HomeOverlay> createState() => _HomeOverlayState();
+}
+
+class _HomeOverlayState extends State<_HomeOverlay> {
+  static const idle = Duration(seconds: 3);
+  bool _active = true;
+  Timer? _timer;
+
+  void _poke() {
+    if (!_active) setState(() => _active = true);
+    _timer?.cancel();
+    _timer = Timer(idle, () {
+      if (mounted) setState(() => _active = false);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _poke();
+  }
+
+  @override
+  void didUpdateWidget(_HomeOverlay old) {
+    super.didUpdateWidget(old);
+    // Just became available (sidebar hidden / fullscreen): show it at once.
+    if (widget.enabled && !old.enabled) _poke();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pl = widget.controller.player;
+    return StreamBuilder<bool>(
+      stream: pl.stream.playing,
+      initialData: pl.state.playing,
+      builder: (context, snap) {
+        final playing = snap.data ?? false;
+        // Paused: always visible, nothing to hide the cursor for.
+        final visible = widget.enabled && (_active || !playing);
+        return MouseRegion(
+          onHover: (_) => _poke(),
+          onEnter: (_) => _poke(),
+          cursor: widget.enabled && !visible
+              ? SystemMouseCursors.none
+              : MouseCursor.defer,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              widget.child,
+              if (widget.enabled)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: IgnorePointer(
+                    ignoring: !visible,
+                    child: AnimatedOpacity(
+                      opacity: visible ? 1 : 0,
+                      duration: const Duration(milliseconds: 250),
+                      child: _scrim(),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _scrim() {
+    const white = Color(0xFFECEDF1);
+    return Container(
+      height: 84,
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xB8000000), Color(0x00000000)],
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Tooltip(
+            message: 'Back to Home (H)',
+            child: Material(
+              color: const Color(0xCC101116),
+              shape: const StadiumBorder(
+                side: BorderSide(color: Color(0x33FFFFFF)),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: widget.onHome,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.only(left: 10, right: 12),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chevron_left, size: 20, color: white),
+                      SizedBox(width: 2),
+                      Text(
+                        'Home',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      _Kbd('H'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          if (widget.fullscreen)
+            Tooltip(
+              message: 'Exit fullscreen (Esc)',
+              child: Material(
+                color: const Color(0xCC101116),
+                shape: const CircleBorder(
+                  side: BorderSide(color: Color(0x33FFFFFF)),
+                ),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: widget.onExitFullscreen,
+                  child: const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Icon(Icons.fullscreen_exit, size: 20, color: white),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small key label, like a keyboard key.
+class _Kbd extends StatelessWidget {
+  const _Kbd(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: const Color(0x24FFFFFF),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFFECEDF1),
+      ),
+    ),
+  );
 }

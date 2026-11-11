@@ -13,6 +13,7 @@ import 'controls.dart';
 import 'library_thumb.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';
+import 'sidebar.dart';
 import 'theme.dart';
 
 /// Home + Dashboard, following the "Home + Dashboard" board of the UI design.
@@ -26,7 +27,7 @@ class HomePage extends StatefulWidget {
     required this.onOpenFile,
     required this.onOpenFolder,
     required this.onMini,
-    required this.onSettings,
+    required this.section,
     required this.onOpenPlayer,
     required this.onResume,
     this.miniHost,
@@ -43,7 +44,10 @@ class HomePage extends StatefulWidget {
   final VoidCallback onOpenFile;
   final VoidCallback onOpenFolder;
   final VoidCallback onMini;
-  final VoidCallback onSettings;
+
+  /// Which part of the hub to show: home, library or playlists (chosen in
+  /// the sidebar).
+  final NavDest section;
   final VoidCallback onOpenPlayer;
   final void Function(HistoryEntry) onResume;
 
@@ -51,10 +55,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-enum _Section { home, library, playlists }
-
 class _HomePageState extends State<HomePage> {
-  _Section _section = _Section.home;
   bool _table = false;
   int? _hover;
 
@@ -82,51 +83,40 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: [
         Expanded(
-          child: Row(
-            children: [
-              _Nav(
-                section: _section,
-                onSelect: (s) => setState(() => _section = s),
-                onSettings: widget.onSettings,
+          child: switch (widget.section) {
+            NavDest.library => LibraryView(
+              library: widget.library,
+              playlists: widget.playlists,
+              controller: widget.controller,
+              onOpenPlayer: widget.onOpenPlayer,
+            ),
+            NavDest.playlists => PlaylistsView(
+              playlists: widget.playlists,
+              library: widget.library,
+              controller: widget.controller,
+              onOpenPlayer: widget.onOpenPlayer,
+            ),
+            _ => ListenableBuilder(
+              listenable: widget.history,
+              builder: (context, _) => SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _header(p),
+                    const SizedBox(height: 28),
+                    _continue(p),
+                    const SizedBox(height: 28),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [_week(p), _library(p)],
+                    ),
+                  ],
+                ),
               ),
-              Expanded(
-                child: _section == _Section.library
-                    ? LibraryView(
-                        library: widget.library,
-                        playlists: widget.playlists,
-                        controller: widget.controller,
-                        onOpenPlayer: widget.onOpenPlayer,
-                      )
-                    : _section == _Section.playlists
-                    ? PlaylistsView(
-                        playlists: widget.playlists,
-                        library: widget.library,
-                        controller: widget.controller,
-                        onOpenPlayer: widget.onOpenPlayer,
-                      )
-                    : ListenableBuilder(
-                        listenable: widget.history,
-                        builder: (context, _) => SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(32, 28, 32, 32),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _header(p),
-                              const SizedBox(height: 28),
-                              _continue(p),
-                              const SizedBox(height: 28),
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 16,
-                                children: [_week(p), _library(p)],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-              ),
-            ],
-          ),
+            ),
+          },
         ),
         // While a separate mini player is open it is the one playing; this
         // window's own player is idle, so say so instead of showing it.
@@ -506,105 +496,6 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Nav extends StatelessWidget {
-  const _Nav({
-    required this.section,
-    required this.onSelect,
-    required this.onSettings,
-  });
-  final _Section section;
-  final ValueChanged<_Section> onSelect;
-  final VoidCallback onSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.pal;
-    Widget item(
-      IconData icon,
-      String label, {
-      bool active = false,
-      VoidCallback? onTap,
-    }) {
-      final enabled = active || onTap != null;
-      return Tooltip(
-        message: enabled ? '' : 'Coming soon',
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: active ? p.hover : null,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: active
-                      ? p.accentInk
-                      : enabled
-                      ? p.icon
-                      : p.textDim.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: active
-                        ? p.text
-                        : enabled
-                        ? p.icon
-                        : p.textDim.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: p.titleBar,
-        border: Border(right: BorderSide(color: p.panelBorder)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          item(
-            Icons.home_outlined,
-            'Home',
-            active: section == _Section.home,
-            onTap: () => onSelect(_Section.home),
-          ),
-          item(
-            Icons.folder_outlined,
-            'Library',
-            active: section == _Section.library,
-            onTap: () => onSelect(_Section.library),
-          ),
-          item(
-            Icons.list,
-            'Playlists',
-            active: section == _Section.playlists,
-            onTap: () => onSelect(_Section.playlists),
-          ),
-          item(Icons.history, 'Recently played'),
-          item(Icons.tune, 'Settings', onTap: onSettings),
         ],
       ),
     );

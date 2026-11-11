@@ -763,6 +763,12 @@ class _SettingsPageState extends State<SettingsPage> {
         const _Shortcut('Audio only on / off', [
           ['A'],
         ], hint: 'Stops decoding the picture to save CPU and GPU'),
+        const _Shortcut('Home', [
+          ['H'],
+        ]),
+        const _Shortcut('Show / hide sidebar', [
+          ['Ctrl', 'B'],
+        ]),
         const _Shortcut('Mini player', [
           ['Ctrl', 'M'],
         ]),

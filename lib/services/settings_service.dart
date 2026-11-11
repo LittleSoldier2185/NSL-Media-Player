@@ -93,6 +93,17 @@ class AppSettings extends ChangeNotifier {
   /// Show the picture of videos in the mini player (otherwise sound only).
   bool get miniShowVideo => _prefs.getBool('miniShowVideo') ?? true;
 
+  /// Sidebar state: 'open' (icons and names), 'rail' (icons only) or 'hidden'.
+  String get sidebarMode {
+    final v = _prefs.getString('sidebarMode');
+    return v == 'rail' || v == 'hidden' ? v! : 'open';
+  }
+
+  set sidebarMode(String v) {
+    _prefs.setString('sidebarMode', v);
+    notifyListeners();
+  }
+
   /// Open the mini player as its own window, leaving the main window open.
   /// When off, the main window itself shrinks into the mini player.
   bool get miniSeparateWindow => _prefs.getBool('miniSeparateWindow') ?? true;
