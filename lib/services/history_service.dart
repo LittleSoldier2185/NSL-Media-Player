@@ -250,9 +250,11 @@ class HistoryService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Entries to show under "Continue" (existing on disk is not checked here).
+  /// Entries to show under "Continue", newest first. Not limited and not
+  /// checked against the disk: the page drops missing files, then takes what
+  /// fits.
   List<HistoryEntry> get resumable => (_settings?.resume ?? true)
-      ? entries.where((e) => e.resumable).take(3).toList()
+      ? entries.where((e) => e.resumable).toList()
       : const [];
 
   /// Watch seconds for the last 7 days, oldest first, with their dates.

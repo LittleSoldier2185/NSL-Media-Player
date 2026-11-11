@@ -261,9 +261,16 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Files that were stopped partway, newest first (at most three).
-  List<HistoryEntry> get _resumable =>
-      widget.history.resumable.where((e) => File(e.path).existsSync()).toList();
+  /// Most "Continue" entries shown: the big card plus three small ones, which
+  /// is what fills the column beside it.
+  static const _maxContinue = 4;
+
+  /// Files that were stopped partway, newest first. Missing files are dropped
+  /// before counting so the slots are always filled when there are enough.
+  List<HistoryEntry> get _resumable => widget.history.resumable
+      .where((e) => File(e.path).existsSync())
+      .take(_maxContinue)
+      .toList();
 
   Widget _continue(NslPalette p, double w) {
     final items = _resumable;
