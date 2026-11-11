@@ -81,6 +81,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final p = context.pal;
     return Column(
+      // Stretch: every page below (Home, Library, Playlists) must fill the
+      // full width. Without it the scroll views shrink to their content and
+      // sit in the middle of the window.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: switch (widget.section) {
