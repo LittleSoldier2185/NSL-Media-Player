@@ -8,13 +8,17 @@ import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/mini_ipc.dart';
 import '../services/playlist_service.dart';
+import '../services/random_picker.dart';
 import '../services/thumbnail_service.dart';
 import 'controls.dart';
+import 'history_view.dart';
+import 'home_sections.dart';
 import 'library_thumb.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';
 import 'sidebar.dart';
 import 'theme.dart';
+import 'time_format.dart';
 
 /// Home + Dashboard, following the "Home + Dashboard" board of the UI design.
 class HomePage extends StatefulWidget {
@@ -31,6 +35,7 @@ class HomePage extends StatefulWidget {
     required this.onOpenPlayer,
     required this.onResume,
     required this.onOpenLibrary,
+    required this.onOpenHistory,
     this.miniHost,
   });
 
@@ -55,13 +60,32 @@ class HomePage extends StatefulWidget {
   /// "See all in Library" and the empty "Add a folder" prompt.
   final VoidCallback onOpenLibrary;
 
+  /// "See all history".
+  final VoidCallback onOpenHistory;
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
+/// The three views of Home.
+enum HomeTab { all, videos, music }
+
 class _HomePageState extends State<HomePage> {
   bool _table = false;
   int? _hover;
+  HomeTab _tab = HomeTab.all;
+
+  /// The random picks stay the same across rebuilds until rolled again.
+  late final RandomVideoModel _random = RandomVideoModel(
+    items: () => widget.library.items,
+    played: widget.history.playedPaths,
+  );
+
+  @override
+  void dispose() {
+    _random.dispose();
+    super.dispose();
+  }
 
   static const _dayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   static const _dayLong = [
@@ -97,6 +121,14 @@ class _HomePageState extends State<HomePage> {
               playlists: widget.playlists,
               controller: widget.controller,
               onOpenPlayer: widget.onOpenPlayer,
+            ),
+            NavDest.history => HistoryView(
+              history: widget.history,
+              library: widget.library,
+              playlists: widget.playlists,
+              controller: widget.controller,
+              onOpenPlayer: widget.onOpenPlayer,
+              onResume: widget.onResume,
             ),
             NavDest.playlists => PlaylistsView(
               playlists: widget.playlists,
@@ -152,7 +184,12 @@ class _HomePageState extends State<HomePage> {
   /// as the window (or the sidebar) changes the room available.
   static const _maxWidth = 1180.0;
 
+  /// Lower-cased path -> library entry, rebuilt on every build of the page
+  /// (gives the history rows their tags).
+  Map<String, LibraryItem> _byPath = {};
+
   Widget _homeScroll(NslPalette p) {
+    _byPath = {for (final i in widget.library.items) i.path.toLowerCase(): i};
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(40, 32, 40, 40),
       child: Center(
@@ -161,16 +198,59 @@ class _HomePageState extends State<HomePage> {
           child: LayoutBuilder(
             builder: (context, box) {
               final w = box.maxWidth;
+              const gap = SizedBox(height: 34);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _header(p, w),
+                  const SizedBox(height: 22),
+                  _tabs(p),
                   const SizedBox(height: 30),
-                  _continue(p, w),
-                  const SizedBox(height: 34),
-                  _stats(p, w),
-                  const SizedBox(height: 34),
-                  _recent(p, w),
+                  ...switch (_tab) {
+                    HomeTab.all => [
+                      _continue(p, w, HomeTab.all),
+                      gap,
+                      _lucky(p, w),
+                      gap,
+                      ..._musicPreview(p, w, gap),
+                      _recent(
+                        p,
+                        w,
+                        video: true,
+                        title: 'Recently added videos',
+                      ),
+                      gap,
+                      _historySection(p, 5, HomeTab.all, 'History'),
+                      gap,
+                      _stats(p, w),
+                    ],
+                    HomeTab.videos => [
+                      _continue(p, w, HomeTab.videos),
+                      gap,
+                      _randomVideos(p, w),
+                      gap,
+                      _recent(
+                        p,
+                        w,
+                        video: true,
+                        title: 'Recently added',
+                        rows: 2,
+                      ),
+                      gap,
+                      _historySection(p, 4, HomeTab.videos, 'Video history'),
+                    ],
+                    HomeTab.music => [
+                      _musicActions(p),
+                      const SizedBox(height: 30),
+                      _continue(p, w, HomeTab.music),
+                      gap,
+                      _albums(p, w, rows: 2),
+                      gap,
+                      _songs(p, w),
+                      gap,
+                      _historySection(p, 3, HomeTab.music, 'Listening history'),
+                    ],
+                  },
                 ],
               );
             },
@@ -179,6 +259,8 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  // ---- header and tabs ----
 
   Widget _section(NslPalette p, String title, {Widget? trailing}) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
@@ -197,6 +279,11 @@ class _HomePageState extends State<HomePage> {
         ?trailing,
       ],
     ),
+  );
+
+  Widget _link(NslPalette p, String label, VoidCallback onTap) => TextButton(
+    onPressed: onTap,
+    child: Text(label, style: TextStyle(color: p.accentInk, fontSize: 13)),
   );
 
   Widget _header(NslPalette p, double w) {
@@ -261,28 +348,119 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Most "Continue" entries shown: the big card plus three small ones, which
-  /// is what fills the column beside it.
-  static const _maxContinue = 4;
+  /// All / Videos / Music, with how many of each the Library holds.
+  Widget _tabs(NslPalette p) {
+    final lib = widget.library;
+    Widget tab(HomeTab t, String label, int count) {
+      final on = _tab == t;
+      return InkWell(
+        onTap: () => setState(() => _tab = t),
+        child: Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: on ? p.accent : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: on ? p.accentInk : p.icon,
+                ),
+              ),
+              if (count > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '$count',
+                  style: TextStyle(fontSize: 11.5, color: p.textDim),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
 
-  /// Files that were stopped partway, newest first. Missing files are dropped
-  /// before counting so the slots are always filled when there are enough.
-  List<HistoryEntry> get _resumable => widget.history.resumable
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: p.panelBorder)),
+      ),
+      child: Row(
+        children: [
+          tab(HomeTab.all, 'All', 0),
+          tab(HomeTab.videos, 'Videos', lib.videoCount),
+          tab(HomeTab.music, 'Music', lib.musicCount),
+        ],
+      ),
+    );
+  }
+
+  // ---- playing things ----
+
+  Future<void> _playPaths(
+    List<String> paths, {
+    int start = 0,
+    bool shuffle = false,
+  }) async {
+    if (paths.isEmpty) return;
+    final list = shuffle ? ([...paths]..shuffle()) : paths;
+    await widget.controller.openPaths(list, start: start);
+    widget.onOpenPlayer();
+  }
+
+  /// A history row: resume where it stopped, or start over if it had ended.
+  void _playEntry(HistoryEntry e) {
+    if (e.resumable) {
+      widget.onResume(e);
+    } else {
+      _playPaths([e.path]);
+    }
+  }
+
+  // ---- Continue ----
+
+  /// Files that were stopped partway, newest first, for the given tab.
+  /// Missing files are dropped before counting so the slots stay filled.
+  List<HistoryEntry> _resumable(HomeTab tab) => widget.history.resumable
+      .where(
+        (e) => switch (tab) {
+          HomeTab.all => true,
+          HomeTab.videos => e.isVideo,
+          HomeTab.music => !e.isVideo,
+        },
+      )
       .where((e) => File(e.path).existsSync())
       .take(_maxContinue)
       .toList();
 
-  Widget _continue(NslPalette p, double w) {
-    final items = _resumable;
+  /// Most "Continue" entries shown: the big card plus three small ones, which
+  /// is what fills the column beside it.
+  static const _maxContinue = 4;
+
+  Widget _continue(NslPalette p, double w, HomeTab tab) {
+    final items = _resumable(tab);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _section(p, 'Continue'),
+        _section(p, tab == HomeTab.music ? 'Continue listening' : 'Continue'),
         if (items.isEmpty)
           Text(
-            'Nothing to resume yet. Files you stop partway through show up here.',
+            tab == HomeTab.music
+                ? 'Nothing to resume yet. Songs you stop partway through show up here.'
+                : 'Nothing to resume yet. Files you stop partway through show up here.',
             style: TextStyle(fontSize: 13, color: p.textDim),
           )
+        else if (tab == HomeTab.music)
+          _continueMusic(items, w)
         else
           _continueBody(items, w),
       ],
@@ -327,6 +505,372 @@ class _HomePageState extends State<HomePage> {
     return Column(children: [hero, const SizedBox(height: 14), ...rest]);
   }
 
+  /// Songs have square art, so they get small cards in a row rather than a
+  /// big picture card.
+  Widget _continueMusic(List<HistoryEntry> items, double w) {
+    const gap = 16.0;
+    final cols = w >= 900 ? 3 : (w >= 560 ? 2 : 1);
+    final cardW = (w - gap * (cols - 1)) / cols;
+    return Wrap(
+      spacing: gap,
+      runSpacing: gap,
+      children: [
+        for (final e in items.take(cols == 3 ? 3 : cols * 2))
+          SizedBox(
+            width: cardW,
+            child: _MiniResume(
+              entry: e,
+              thumbnails: widget.library.thumbnails,
+              onTap: () => widget.onResume(e),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ---- random video and shuffle ----
+
+  /// "Feeling lucky?": a random video, and shuffle buttons for the whole
+  /// Library.
+  Widget _lucky(NslPalette p, double w) {
+    final lib = widget.library;
+    final videos = [
+      for (final i in lib.items)
+        if (i.isVideo) i.path,
+    ];
+    final songs = [
+      for (final i in lib.items)
+        if (!i.isVideo) i.path,
+    ];
+    final random = RandomVideoCard(
+      model: _random,
+      library: lib,
+      onPlay: (i) => _playPaths([i.path]),
+      onOpenLibrary: widget.onOpenLibrary,
+    );
+    final shuffleVideos = ShuffleCard(
+      title: 'Shuffle all videos',
+      subtitle: videos.isEmpty
+          ? 'No videos in your Library yet'
+          : '${videos.length} videos in your Library',
+      enabled: videos.isNotEmpty,
+      onTap: () => _playPaths(videos, shuffle: true),
+    );
+    final shuffleSongs = ShuffleCard(
+      title: 'Shuffle all music',
+      subtitle: songs.isEmpty
+          ? 'No songs in your Library yet'
+          : '${songs.length} songs in your Library',
+      enabled: songs.isNotEmpty,
+      onTap: () => _playPaths(songs, shuffle: true),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(p, 'Feeling lucky?'),
+        if (w >= 900)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 2, child: random),
+              const SizedBox(width: 20),
+              Expanded(child: shuffleVideos),
+              const SizedBox(width: 20),
+              Expanded(child: shuffleSongs),
+            ],
+          )
+        else ...[
+          random,
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: shuffleVideos),
+              const SizedBox(width: 16),
+              Expanded(child: shuffleSongs),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// The Videos tab: three random videos with the filter and re-roll buttons.
+  Widget _randomVideos(NslPalette p, double w) {
+    final lib = widget.library;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListenableBuilder(
+          listenable: _random,
+          builder: (context, _) => Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'Random videos',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: p.text,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Only unwatched'),
+                  selected: _random.onlyUnwatched,
+                  showCheckmark: false,
+                  onSelected: _random.setOnlyUnwatched,
+                ),
+                OutlinedButton.icon(
+                  onPressed: _random.roll,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Roll again'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: lib.videoCount == 0
+                      ? null
+                      : () => _playPaths([
+                          for (final i in lib.items)
+                            if (i.isVideo) i.path,
+                        ], shuffle: true),
+                  icon: const Icon(Icons.shuffle, size: 18),
+                  label: const Text('Shuffle all videos'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: p.accent,
+                    foregroundColor: p.onAccent,
+                    minimumSize: const Size(0, 38),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        RandomVideoGrid(
+          model: _random,
+          library: lib,
+          width: w,
+          onPlay: (i) => _playPaths([i.path]),
+          onOpenLibrary: widget.onOpenLibrary,
+        ),
+      ],
+    );
+  }
+
+  // ---- music ----
+
+  /// Play all / Shuffle, and what the Library holds.
+  Widget _musicActions(NslPalette p) {
+    final lib = widget.library;
+    final count = lib.musicCount;
+    List<String> all() => [
+      for (final i in lib.query(video: false, sort: LibrarySort.artist)) i.path,
+    ];
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilledButton.icon(
+          onPressed: count == 0 ? null : () => _playPaths(all()),
+          icon: const Icon(Icons.play_arrow_rounded, size: 20),
+          label: const Text('Play all'),
+          style: FilledButton.styleFrom(
+            backgroundColor: p.accent,
+            foregroundColor: p.onAccent,
+            minimumSize: const Size(0, 46),
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: count == 0 ? null : () => _playPaths(all(), shuffle: true),
+          icon: const Icon(Icons.shuffle, size: 18),
+          label: const Text('Shuffle'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(0, 46),
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          count == 0
+              ? 'No songs in your Library yet'
+              : '$count songs · ${lib.albums().length} albums · '
+                    '${lib.artistCount} artists',
+          style: TextStyle(fontSize: 14, color: p.textDim),
+        ),
+      ],
+    );
+  }
+
+  int _tileCols(double w, double minTile, {int max = 6}) =>
+      ((w + 16) / (minTile + 16)).floor().clamp(2, max);
+
+  /// Albums from the music tags: a preview row on the All tab.
+  List<Widget> _musicPreview(NslPalette p, double w, Widget gap) {
+    if (widget.library.albums().isEmpty) return const [];
+    return [_albums(p, w, rows: 1, compact: true), gap];
+  }
+
+  Widget _albums(
+    NslPalette p,
+    double w, {
+    required int rows,
+    bool compact = false,
+  }) {
+    final lib = widget.library;
+    final albums = lib.albums();
+    final cols = _tileCols(w, 160);
+    final tileW = (w - 16 * (cols - 1)) / cols;
+    final shown = albums.take(cols * rows).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(
+          p,
+          compact ? 'Music' : 'Albums',
+          trailing: _link(
+            p,
+            compact ? 'Open Music' : 'See all in Library',
+            compact
+                ? () => setState(() => _tab = HomeTab.music)
+                : widget.onOpenLibrary,
+          ),
+        ),
+        if (shown.isEmpty)
+          Text(
+            lib.musicCount == 0 ? 'No songs in your Library yet.' : 'No albums found. Albums come from the album tag of your music files.',
+            style: TextStyle(fontSize: 13, color: p.textDim),
+          )
+        else
+          Wrap(
+            spacing: 16,
+            runSpacing: 18,
+            children: [
+              for (final a in shown)
+                SizedBox(
+                  width: tileW,
+                  child: AlbumTile(
+                    album: a,
+                    library: lib,
+                    onTap: () => _playPaths([for (final t in a.tracks) t.path]),
+                  ),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// The newest songs as a list.
+  Widget _songs(NslPalette p, double w) {
+    final lib = widget.library;
+    final shown = lib
+        .query(video: false, sort: LibrarySort.recent)
+        .take(5)
+        .toList();
+    final paths = [for (final s in shown) s.path];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(
+          p,
+          'Recently added songs',
+          trailing: _link(p, 'See all in Library', widget.onOpenLibrary),
+        ),
+        if (shown.isEmpty)
+          Text(
+            'No songs in your Library yet.',
+            style: TextStyle(fontSize: 13, color: p.textDim),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.panelBorder),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [p.panelTop, p.panelBottom],
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (var i = 0; i < shown.length; i++) ...[
+                  if (i > 0) Divider(height: 1, color: p.panelBorder),
+                  SongRow(
+                    number: i + 1,
+                    item: shown[i],
+                    library: lib,
+                    showAlbum: w >= 700,
+                    onTap: () => _playPaths(paths, start: i),
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ---- history ----
+
+  /// The newest played files (any file still on disk), as a short list.
+  Widget _historySection(NslPalette p, int limit, HomeTab tab, String title) {
+    final rows = <Widget>[];
+    for (final e in widget.history.entries) {
+      if (rows.length >= limit) break;
+      if (tab == HomeTab.videos && !e.isVideo) continue;
+      if (tab == HomeTab.music && e.isVideo) continue;
+      if (!File(e.path).existsSync()) continue;
+      if (rows.isNotEmpty) rows.add(Divider(height: 1, color: p.panelBorder));
+      rows.add(
+        HistoryRow(
+          entry: e,
+          item: _byPath[e.path.toLowerCase()],
+          library: widget.library,
+          showType: tab == HomeTab.all,
+          onTap: () => _playEntry(e),
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _section(
+          p,
+          title,
+          trailing: _link(p, 'See all history', widget.onOpenHistory),
+        ),
+        if (rows.isEmpty)
+          Text(
+            'Nothing played yet.',
+            style: TextStyle(fontSize: 13, color: p.textDim),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: p.panelBorder),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [p.panelTop, p.panelBottom],
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(children: rows),
+          ),
+      ],
+    );
+  }
+
   Widget _stats(NslPalette p, double w) {
     if (w >= 760) {
       return IntrinsicHeight(
@@ -345,21 +889,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// The newest files of the Library, as many as fit in one row.
-  Widget _recent(NslPalette p, double w) {
+  /// The newest files of the Library, as many as fit in [rows] rows.
+  Widget _recent(
+    NslPalette p,
+    double w, {
+    required bool video,
+    required String title,
+    int rows = 1,
+  }) {
     final lib = widget.library;
-    final trailing = TextButton(
-      onPressed: widget.onOpenLibrary,
-      child: Text(
-        lib.items.isEmpty ? 'Open Library' : 'See all in Library',
-        style: TextStyle(color: p.accentInk, fontSize: 13),
-      ),
+    final trailing = _link(
+      p,
+      lib.items.isEmpty ? 'Open Library' : 'See all in Library',
+      widget.onOpenLibrary,
     );
     if (lib.items.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _section(p, 'Recently added', trailing: trailing),
+          _section(p, title, trailing: trailing),
           _card(
             p,
             child: Row(
@@ -390,32 +938,40 @@ class _HomePageState extends State<HomePage> {
       );
     }
     const gap = 16.0;
-    final cols = ((w + gap) / (176 + gap)).floor().clamp(2, 6);
+    final cols = _tileCols(w, 176);
     final tileW = (w - gap * (cols - 1)) / cols;
-    final shown = lib.query(sort: LibrarySort.recent).take(cols).toList();
+    final shown = lib
+        .query(video: video, sort: LibrarySort.recent)
+        .take(cols * rows)
+        .toList();
     final paths = [for (final i in shown) i.path];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _section(p, 'Recently added', trailing: trailing),
-        Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (var i = 0; i < shown.length; i++)
-              SizedBox(
-                width: tileW,
-                child: _RecentTile(
-                  item: shown[i],
-                  library: lib,
-                  onTap: () async {
-                    await widget.controller.openPaths(paths, start: i);
-                    widget.onOpenPlayer();
-                  },
+        _section(p, title, trailing: trailing),
+        if (shown.isEmpty)
+          Text(
+            video
+                ? 'No videos in your Library yet.'
+                : 'No songs in your Library yet.',
+            style: TextStyle(fontSize: 13, color: p.textDim),
+          )
+        else
+          Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (var i = 0; i < shown.length; i++)
+                SizedBox(
+                  width: tileW,
+                  child: _RecentTile(
+                    item: shown[i],
+                    library: lib,
+                    onTap: () => _playPaths(paths, start: i),
+                  ),
                 ),
-              ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }
@@ -640,28 +1196,6 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-/// 1:23 style clock from milliseconds.
-String _clock(int ms) {
-  final d = Duration(milliseconds: ms);
-  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return d.inHours > 0
-      ? '${d.inHours}:${d.inMinutes.remainder(60).toString().padLeft(2, '0')}:$s'
-      : '${d.inMinutes}:$s';
-}
-
-/// "just now", "3 h ago", "yesterday", "5 days ago".
-String _ago(DateTime t) {
-  final d = DateTime.now().difference(t);
-  if (d.inMinutes < 2) return 'just now';
-  if (d.inHours < 1) return '${d.inMinutes} min ago';
-  if (d.inHours < 24) return '${d.inHours} h ago';
-  if (d.inHours < 48) return 'yesterday';
-  return '${d.inDays} days ago';
-}
-
-String _progressText(HistoryEntry e) =>
-    e.durMs > 0 ? '${_clock(e.posMs)} of ${_clock(e.durMs)}' : _clock(e.posMs);
-
 /// The biggest "Continue" card: a large picture with a play button, the
 /// title and how far you got.
 class _HeroCard extends StatelessWidget {
@@ -744,7 +1278,7 @@ class _HeroCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '${entry.isVideo ? 'Video' : 'Audio'} · '
-                      '${_progressText(entry)} · ${_ago(entry.lastPlayed)}',
+                      '${progressText(entry)} · ${agoText(entry.lastPlayed)}',
                       style: TextStyle(fontSize: 12.5, color: p.textDim),
                     ),
                     const SizedBox(height: 12),
@@ -831,7 +1365,7 @@ class _MiniResume extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _progressText(entry),
+                      progressText(entry),
                       style: TextStyle(fontSize: 12.5, color: p.textDim),
                     ),
                     const SizedBox(height: 10),

@@ -56,6 +56,30 @@ class LibraryItem {
   }
 }
 
+/// Songs that share an album name (and folder), as shown on Home > Music.
+class Album {
+  Album({
+    required this.name,
+    required this.artist,
+    required this.tracks,
+    required this.newest,
+  });
+
+  final String name;
+
+  /// The one artist, or "Various artists" when the tracks differ.
+  final String artist;
+
+  /// In file-name order, which is track order for most libraries.
+  final List<LibraryItem> tracks;
+
+  /// Most recent modification time among the tracks (for "recently added").
+  final int newest;
+
+  /// The first track stands in for the album's cover art.
+  LibraryItem get cover => tracks.first;
+}
+
 enum LibrarySort { title, artist, album, recent }
 
 /// Library folders, a scanned index of their media files, and cover art.
@@ -284,6 +308,68 @@ class LibraryService extends ChangeNotifier {
       LibrarySort.recent => (a, b) => b.modified.compareTo(a.modified),
     });
     return out;
+  }
+
+  /// Albums found in the tags of the music files, newest first. Songs without
+  /// an album tag are not part of any album.
+  List<Album> albums() {
+    final cached = _albumsCache;
+    if (cached != null && identical(_albumsFor, _items)) return cached;
+    final groups = <String, List<LibraryItem>>{};
+    for (final i in _items) {
+      if (i.isVideo || i.album.trim().isEmpty) continue;
+      final slash = i.path.lastIndexOf(RegExp(r'[\\/]'));
+      final dir = slash < 0 ? '' : i.path.substring(0, slash);
+      groups
+          .putIfAbsent(
+            '${i.album.toLowerCase()}|${dir.toLowerCase()}',
+            () => [],
+          )
+          .add(i);
+    }
+    final out = <Album>[];
+    for (final tracks in groups.values) {
+      tracks.sort(
+        (a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()),
+      );
+      final artists = {
+        for (final t in tracks)
+          if (t.artist.trim().isNotEmpty) t.artist.trim(),
+      };
+      out.add(
+        Album(
+          name: tracks.first.album.trim(),
+          artist: artists.length == 1
+              ? artists.first
+              : artists.isEmpty
+              ? ''
+              : 'Various artists',
+          tracks: tracks,
+          newest: tracks.map((t) => t.modified).reduce((a, b) => a > b ? a : b),
+        ),
+      );
+    }
+    out.sort((a, b) => b.newest.compareTo(a.newest));
+    _albumsCache = out;
+    _albumsFor = _items;
+    return out;
+  }
+
+  List<Album>? _albumsCache;
+  List<LibraryItem>? _albumsFor;
+
+  /// Number of different artists in the music tags.
+  int get artistCount => {
+    for (final i in _items)
+      if (!i.isVideo && i.artist.trim().isNotEmpty)
+        i.artist.trim().toLowerCase(),
+  }.length;
+
+  /// Replaces the index without scanning (tests).
+  @visibleForTesting
+  void setItemsForTest(List<LibraryItem> items) {
+    _items = items;
+    notifyListeners();
   }
 
   int get musicCount => _items.where((i) => !i.isVideo).length;

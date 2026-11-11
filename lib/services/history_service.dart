@@ -65,13 +65,17 @@ class HistoryService extends ChangeNotifier {
     });
   }
 
-  static const _maxEntries = 30;
+  /// How many played files are remembered (Continue, History page).
+  static const _maxEntries = 200;
 
   final SharedPreferences _prefs;
   final NslPlayerController _c;
   final AppSettings? _settings;
   final bool _track;
   bool get _enabled => _track && (_settings?.keepHistory ?? true);
+
+  /// False when history is turned off in Settings.
+  bool get enabled => _enabled;
 
   /// While true, a change of file is not counted as a new play: used when the
   /// queue is handed back from the mini player, which reports its own plays.
@@ -213,6 +217,21 @@ class HistoryService extends ChangeNotifier {
     if (entries.length > _maxEntries)
       entries.removeRange(_maxEntries, entries.length);
     return e;
+  }
+
+  /// Every path that has been played (in the remembered list or counted in
+  /// the monthly play counts), lower-cased for comparing.
+  Set<String> playedPaths() => {
+    for (final e in entries) e.path.toLowerCase(),
+    for (final month in plays.values)
+      for (final path in month.keys) path.toLowerCase(),
+  };
+
+  /// Forgets one file's history entry (the file is not touched).
+  void removeEntry(String path) {
+    final before = entries.length;
+    entries.removeWhere((e) => e.path == path);
+    if (entries.length != before) _save();
   }
 
   /// Removes all history; files are not touched.

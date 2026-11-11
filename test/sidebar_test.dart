@@ -34,6 +34,7 @@ void main() {
       'Home',
       'Library',
       'Playlists',
+      'History',
       'Player',
       'Settings',
       'Collapse',
@@ -83,19 +84,19 @@ void main() {
 
   testWidgets('tapping an item reports where to go', (tester) async {
     final picked = <NavDest>[];
-    await tester.pumpWidget(
-      host(mode: SidebarMode.open, onSelect: picked.add),
-    );
+    await tester.pumpWidget(host(mode: SidebarMode.open, onSelect: picked.add));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Home'));
     await tester.tap(find.text('Library'));
     await tester.tap(find.text('Playlists'));
+    await tester.tap(find.text('History'));
     await tester.tap(find.text('Player'));
     await tester.tap(find.text('Settings'));
     expect(picked, [
       NavDest.home,
       NavDest.library,
       NavDest.playlists,
+      NavDest.history,
       NavDest.player,
       NavDest.settings,
     ]);
@@ -113,9 +114,7 @@ void main() {
 
   testWidgets('in the rail the same buttons still work', (tester) async {
     final picked = <NavDest>[];
-    await tester.pumpWidget(
-      host(mode: SidebarMode.rail, onSelect: picked.add),
-    );
+    await tester.pumpWidget(host(mode: SidebarMode.rail, onSelect: picked.add));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.queue_music_outlined));
     expect(picked, [NavDest.playlists]);

@@ -105,7 +105,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         case NavDest.player:
           _settingsOpen = false;
           if (!_miniOpen) _home = false;
-        case NavDest.home || NavDest.library || NavDest.playlists:
+        case NavDest.home ||
+            NavDest.library ||
+            NavDest.playlists ||
+            NavDest.history:
           _settingsOpen = false;
           _home = true;
           _section = d;
@@ -771,6 +774,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                         onResume: _resume,
                                         onOpenLibrary: () =>
                                             _navigate(NavDest.library),
+                                        onOpenHistory: () =>
+                                            _navigate(NavDest.history),
                                       )
                                     : Row(
                                         children: [
