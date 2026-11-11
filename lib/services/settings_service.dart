@@ -93,6 +93,10 @@ class AppSettings extends ChangeNotifier {
   /// Show the picture of videos in the mini player (otherwise sound only).
   bool get miniShowVideo => _prefs.getBool('miniShowVideo') ?? true;
 
+  /// Open the mini player as its own window, leaving the main window open.
+  /// When off, the main window itself shrinks into the mini player.
+  bool get miniSeparateWindow => _prefs.getBool('miniSeparateWindow') ?? true;
+
   /// Size the user gave the mini player's picture-in-picture window, as a
   /// multiple of its default size (1.0).
   double get miniScale => _prefs.getDouble('miniScale') ?? 1.0;
@@ -125,6 +129,9 @@ class AppSettings extends ChangeNotifier {
         _prefs.setDouble(key, v);
       case String v:
         _prefs.setString(key, v);
+      case List<Object?> v:
+        // From JSON (the mini player process): lists arrive as List<dynamic>.
+        _prefs.setStringList(key, [for (final x in v) '$x']);
     }
     notifyListeners();
   }

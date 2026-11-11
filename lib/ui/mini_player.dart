@@ -72,6 +72,7 @@ class MiniPlayer extends StatelessWidget {
     required this.onOpacity,
     required this.onToggleOnTop,
     required this.onToggleVideo,
+    required this.onClose,
     required this.onExpand,
   });
 
@@ -83,6 +84,10 @@ class MiniPlayer extends StatelessWidget {
 
   /// Switches between picture + sound and sound only (lighter on CPU/GPU).
   final VoidCallback onToggleVideo;
+
+  /// Closes the mini player (and reports back to the main window if the mini
+  /// player is a separate process).
+  final VoidCallback onClose;
   final VoidCallback onExpand;
 
   @override
@@ -97,6 +102,7 @@ class MiniPlayer extends StatelessWidget {
               onOpacity: onOpacity,
               onToggleOnTop: onToggleOnTop,
               onToggleVideo: onToggleVideo,
+              onClose: onClose,
               onExpand: onExpand,
             )
           : _card(context),
@@ -170,11 +176,7 @@ class MiniPlayer extends StatelessWidget {
                         : 'Sound only (saves CPU)',
                   ),
                 IconBtn(Icons.open_in_full, onExpand, tooltip: 'Full player'),
-                IconBtn(
-                  Icons.close,
-                  () => windowManager.close(),
-                  tooltip: 'Close',
-                ),
+                IconBtn(Icons.close, onClose, tooltip: 'Close'),
               ],
             ),
           ),
@@ -329,6 +331,7 @@ class _PipView extends StatefulWidget {
     required this.onOpacity,
     required this.onToggleOnTop,
     required this.onToggleVideo,
+    required this.onClose,
     required this.onExpand,
   });
 
@@ -338,6 +341,10 @@ class _PipView extends StatefulWidget {
   final ValueChanged<int> onOpacity;
   final VoidCallback onToggleOnTop;
   final VoidCallback onToggleVideo;
+
+  /// Closes the mini player (and reports back to the main window if the mini
+  /// player is a separate process).
+  final VoidCallback onClose;
   final VoidCallback onExpand;
 
   @override
@@ -513,11 +520,7 @@ class _PipViewState extends State<_PipView> {
                             widget.onExpand,
                             'Full player',
                           ),
-                          _icon(
-                            Icons.close,
-                            () => windowManager.close(),
-                            'Close',
-                          ),
+                          _icon(Icons.close, widget.onClose, 'Close'),
                         ],
                       ),
                     ),

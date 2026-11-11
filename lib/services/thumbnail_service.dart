@@ -26,7 +26,12 @@ class ThumbTicket {
 }
 
 class _Job {
-  _Job(this.key, this.run);
+  _Job(this.key, this.run) : seq = _nextSeq++;
+  static int _nextSeq = 0;
+
+  /// Order of the request. The pool starts the highest first, whatever order
+  /// the jobs happen to reach it in (disk lookups finish in any order).
+  final int seq;
   final String key;
   final Future<Uint8List?> Function() run;
   final Completer<Uint8List?> done = Completer();
@@ -50,7 +55,11 @@ class _Pool {
 
   void _pump() {
     while (_running < maxConcurrent && _stack.isNotEmpty) {
-      final j = _stack.removeLast();
+      var best = 0;
+      for (var i = 1; i < _stack.length; i++) {
+        if (_stack[i].seq > _stack[best].seq) best = i;
+      }
+      final j = _stack.removeAt(best);
       if (j.cancelled) {
         if (!j.done.isCompleted) j.done.complete(null);
         continue;

@@ -50,7 +50,9 @@ class HistoryEntry {
 
 /// Records resume positions, daily watch time and play counts.
 class HistoryService extends ChangeNotifier {
-  HistoryService(this._prefs, this._c, [this._settings]) {
+  /// [track] false makes this service record nothing (the separate mini
+  /// player process reports to the main window instead of writing history).
+  HistoryService(this._prefs, this._c, [this._settings, this._track = true]) {
     _load();
     _c.addListener(_onController);
     _c.player.stream.playing.listen((v) {
@@ -68,7 +70,50 @@ class HistoryService extends ChangeNotifier {
   final SharedPreferences _prefs;
   final NslPlayerController _c;
   final AppSettings? _settings;
-  bool get _enabled => _settings?.keepHistory ?? true;
+  final bool _track;
+  bool get _enabled => _track && (_settings?.keepHistory ?? true);
+
+  /// While true, a change of file is not counted as a new play: used when the
+  /// queue is handed back from the mini player, which reports its own plays.
+  bool _suspendCounting = false;
+
+  Future<T> withoutCountingPlays<T>(Future<T> Function() body) async {
+    _suspendCounting = true;
+    try {
+      return await body();
+    } finally {
+      _suspendCounting = false;
+    }
+  }
+
+  /// Adds what was watched in a mini player process. Each entry has `path`,
+  /// `seconds`, `posMs`, `durMs` and `plays` (see [MiniSessionTracker]).
+  void recordExternal(List<Map<String, dynamic>> entries) {
+    if (!_enabled) return;
+    final today = dayKey(DateTime.now());
+    for (final e in entries) {
+      final path = e['path'];
+      if (path is! String) continue;
+      final seconds = e['seconds'] is num
+          ? (e['seconds'] as num).toDouble()
+          : 0.0;
+      final plays = e['plays'] is int ? e['plays'] as int : 0;
+      final pos = e['posMs'] is int ? e['posMs'] as int : 0;
+      final dur = e['durMs'] is int ? e['durMs'] as int : 0;
+      if (seconds > 0) daily[today] = (daily[today] ?? 0) + seconds;
+      if (plays > 0) {
+        final month = _monthPlays(DateTime.now());
+        month[path] = (month[path] ?? 0) + plays;
+      }
+      final entry = _upsert(path, pos, dur);
+      entry.posMs = pos;
+      if (dur > 0) entry.durMs = dur;
+    }
+    _save();
+  }
+
+  Map<String, int> _monthPlays(DateTime d) =>
+      plays.putIfAbsent(monthKey(d), () => {});
 
   final List<HistoryEntry> entries = []; // newest first
   final Map<String, double> daily = {}; // yyyy-MM-dd -> seconds
@@ -117,7 +162,7 @@ class HistoryService extends ChangeNotifier {
   void _onController() {
     final path = _c.currentPath;
     if (path == _path) return;
-    if (!_enabled) {
+    if (!_enabled || _suspendCounting) {
       _path = path;
       return;
     }

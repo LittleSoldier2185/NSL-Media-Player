@@ -6,6 +6,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/media_types.dart';
+import '../services/mini_ipc.dart';
 
 class QueueItem {
   QueueItem(this.path)
@@ -170,29 +171,70 @@ class NslPlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// While a separate mini player is open it is the one playing: requests
+  /// made in the main window are forwarded to it instead.
+  RemotePlayback? remote;
+  bool get _forwarding => remote?.active ?? false;
+
   /// Replaces the queue with [paths] and starts playing.
   Future<void> openPaths(List<String> paths, {int start = 0}) async {
     if (paths.isEmpty) return;
+    if (_forwarding) return remote!.open(paths, start: start);
     await _load(paths, start, play: true);
   }
 
   Future<void> open(String path) => openPaths([path]);
 
+  /// Waits until the current file's duration is known (it may already be).
+  /// The duration stream is a broadcast stream, so an event that fired before
+  /// we listen would be missed; poll the state instead.
+  Future<bool> _waitForDuration([
+    Duration timeout = const Duration(seconds: 5),
+  ]) async {
+    final deadline = DateTime.now().add(timeout);
+    while (player.state.duration <= Duration.zero) {
+      if (DateTime.now().isAfter(deadline)) return false;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    return true;
+  }
+
   /// Opens [path] and jumps to [position] once the duration is known.
   Future<void> openAt(String path, Duration position) async {
+    if (_forwarding) return remote!.open([path], at: position);
     await openPaths([path]);
-    try {
-      await player.stream.duration
-          .firstWhere((d) => d > Duration.zero)
-          .timeout(const Duration(seconds: 5));
+    // If the duration cannot be read, playback just stays at the start.
+    if (await _waitForDuration()) await player.seek(position);
+  }
+
+  /// What a mini player needs to carry on from here.
+  Map<String, dynamic> snapshot() => {
+    'queue': [for (final q in queue) q.path],
+    'index': index,
+    'posMs': player.state.position.inMilliseconds,
+    'playing': player.state.playing,
+    'volume': player.state.volume,
+    'speed': speed,
+  };
+
+  /// Loads a queue at a position, as left by the other window. Not forwarded.
+  Future<void> adoptState({
+    required List<String> paths,
+    required int index,
+    required Duration position,
+    required bool play,
+  }) async {
+    if (paths.isEmpty) return;
+    await _load(paths, index, play: false);
+    if (position > Duration.zero && await _waitForDuration()) {
       await player.seek(position);
-    } on TimeoutException {
-      // Could not read the duration; leave playback at the start.
     }
+    if (play) await player.play();
   }
 
   Future<void> addPaths(List<String> paths) async {
     if (paths.isEmpty) return;
+    if (_forwarding) return remote!.add(paths);
     if (queue.isEmpty) return openPaths(paths);
     for (final p in paths) {
       queue.add(QueueItem(p));
@@ -211,8 +253,16 @@ class NslPlayerController extends ChangeNotifier {
   }
 
   Future<void> playIndex(int i) => player.jump(i);
-  Future<void> next() => player.next();
-  Future<void> previous() => player.previous();
+
+  Future<void> next() async {
+    if (_forwarding) return remote!.next();
+    await player.next();
+  }
+
+  Future<void> previous() async {
+    if (_forwarding) return remote!.previous();
+    await player.previous();
+  }
 
   Future<void> toggleShuffle() async {
     shuffle = !shuffle;
@@ -296,7 +346,10 @@ class NslPlayerController extends ChangeNotifier {
     _prefs?.setInt('queueIndex', index);
   }
 
-  Future<void> togglePlay() => player.playOrPause();
+  Future<void> togglePlay() async {
+    if (_forwarding) return remote!.toggle();
+    await player.playOrPause();
+  }
 
   Future<void> seekRelative(Duration delta) async {
     final target = player.state.position + delta;

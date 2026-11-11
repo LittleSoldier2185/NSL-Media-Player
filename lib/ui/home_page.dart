@@ -6,6 +6,7 @@ import '../player_controller/player_controller.dart';
 import '../services/history_service.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
+import '../services/mini_ipc.dart';
 import '../services/playlist_service.dart';
 import 'controls.dart';
 import 'library_view.dart';
@@ -26,7 +27,12 @@ class HomePage extends StatefulWidget {
     required this.onSettings,
     required this.onOpenPlayer,
     required this.onResume,
+    this.miniHost,
   });
+
+  /// When a separate mini player is open, Home says so (the main window's
+  /// own player is idle) and offers to bring playback back here.
+  final MiniHost? miniHost;
 
   final NslPlayerController controller;
   final HistoryService history;
@@ -120,10 +126,23 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        _NowPlayingBar(
-          controller: widget.controller,
-          onOpenPlayer: widget.onOpenPlayer,
-        ),
+        // While a separate mini player is open it is the one playing; this
+        // window's own player is idle, so say so instead of showing it.
+        if (widget.miniHost != null)
+          ListenableBuilder(
+            listenable: widget.miniHost!,
+            builder: (_, _) => widget.miniHost!.active
+                ? _MiniBanner(onBringBack: widget.miniHost!.bringBack)
+                : _NowPlayingBar(
+                    controller: widget.controller,
+                    onOpenPlayer: widget.onOpenPlayer,
+                  ),
+          )
+        else
+          _NowPlayingBar(
+            controller: widget.controller,
+            onOpenPlayer: widget.onOpenPlayer,
+          ),
       ],
     );
   }
@@ -668,6 +687,42 @@ class _ResumeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown at the bottom of Home while the separate mini player is playing.
+class _MiniBanner extends StatelessWidget {
+  const _MiniBanner({required this.onBringBack});
+  final VoidCallback onBringBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.panelTop,
+        border: Border(top: BorderSide(color: p.panelBorder)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.picture_in_picture_alt, size: 18, color: p.accentInk),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Playing in the mini player. Pick something here to play it there.',
+              style: TextStyle(fontSize: 13, color: p.text),
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            onPressed: onBringBack,
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
+            child: const Text('Bring back here'),
+          ),
+        ],
       ),
     );
   }

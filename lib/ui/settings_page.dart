@@ -355,6 +355,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 s.put('miniOnTop', v);
               },
             ),
+            _toggle(
+              p,
+              'Open in its own window',
+              'Keep the main window open while the mini player plays; pick '
+                  'things there and they play in the mini player. Turn off to '
+                  'shrink the main window into the mini player instead.',
+              s.miniSeparateWindow,
+              (v) => s.put('miniSeparateWindow', v),
+            ),
             _row(
               p,
               'Window size',

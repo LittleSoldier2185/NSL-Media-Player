@@ -10,6 +10,8 @@ import 'package:window_manager/legacy.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/media_types.dart';
+import '../services/mini_ipc.dart';
+import '../services/mini_session_tracker.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
 import '../services/library_service.dart';
@@ -32,6 +34,8 @@ class PlayerPage extends StatefulWidget {
     required this.library,
     required this.playlists,
     required this.initialArgs,
+    this.miniHost,
+    this.miniChild,
   });
 
   final NslPlayerController controller;
@@ -40,6 +44,12 @@ class PlayerPage extends StatefulWidget {
   final LibraryService library;
   final PlaylistService playlists;
   final List<String> initialArgs;
+
+  /// Main window: starts the separate mini player process.
+  final MiniHost? miniHost;
+
+  /// Set when this process *is* the separate mini player.
+  final MiniChild? miniChild;
 
   @override
   State<PlayerPage> createState() => _PlayerPageState();
@@ -54,7 +64,18 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   void _openSettings() => setState(() => _settingsOpen = true);
 
   /// Showing the Home / Dashboard instead of the player.
-  late bool _home = !widget.initialArgs.any(isSupportedMedia);
+  late bool _home =
+      widget.miniChild == null && !widget.initialArgs.any(isSupportedMedia);
+
+  /// The separate mini player process is open: it is the one playing.
+  bool get _miniOpen => widget.miniHost?.active ?? false;
+
+  /// Switches to the player page, unless the mini player is the one playing
+  /// (the main window's own player is idle then).
+  void _showPlayer() {
+    if (_miniOpen) return;
+    setState(() => _home = false);
+  }
 
   /// True when audio-only was switched on by minimizing (not by the user).
   bool _autoAudioOnly = false;
@@ -164,6 +185,177 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     if (_mini) _applyMiniSize();
   }
 
+  // ---- separate mini player process: main window side ----
+
+  bool _wasMiniOpen = false;
+
+  /// The mini player process opened, or handed playback back.
+  void _onMiniHost() {
+    final open = _miniOpen;
+    final host = widget.miniHost!;
+    if (_wasMiniOpen &&
+        !open &&
+        host.lastReturn == MiniReturn.expand &&
+        mounted) {
+      _home = false; // it continues here: show the player
+    }
+    _wasMiniOpen = open;
+    if (mounted) setState(() {});
+  }
+
+  /// Opens the mini player. By default it is a separate window and the main
+  /// window stays open; if that cannot be started (or the setting is off) the
+  /// main window itself shrinks into the mini player instead.
+  Future<void> _openMini() async {
+    final host = widget.miniHost;
+    if (host == null || !s.miniSeparateWindow) return _enterMini();
+    if (host.active) return; // already open
+    if (_fullscreen) await _toggleFullscreen(false);
+    final bounds = await windowManager.getBounds();
+    final started = await host.launch(origin: bounds.topLeft);
+    if (!started) {
+      await _enterMini();
+      return;
+    }
+    // The main window's own player is idle now; show something useful.
+    if (mounted) setState(() => _home = true);
+  }
+
+  // ---- separate mini player process: mini side ----
+
+  final _tracker = MiniSessionTracker();
+  final List<StreamSubscription<Object?>> _miniSubs = [];
+  bool _miniFinishing = false;
+
+  /// Starts this process as the mini player: load what the main window was
+  /// playing, then open the small window and carry on.
+  Future<void> _bootMiniProcess() async {
+    final child = widget.miniChild!;
+    final init = child.init;
+    // Closing the window must report back to the main window first.
+    await windowManager.setPreventClose(true);
+    final paths = [
+      for (final p in (init['queue'] as List? ?? const <Object?>[])) '$p',
+    ];
+    final index = init['index'] is int ? init['index'] as int : 0;
+    final posMs = init['posMs'] is int ? init['posMs'] as int : 0;
+    final playing = init['playing'] == true;
+    try {
+      if (init['volume'] is num) {
+        await c.setVolume((init['volume'] as num).toDouble());
+      }
+      if (init['speed'] is num) {
+        await c.setSpeed((init['speed'] as num).toDouble());
+      }
+    } on Object catch (e) {
+      debugPrint('Could not copy volume/speed: $e');
+    }
+    await c.adoptState(
+      paths: paths,
+      index: index,
+      position: Duration(milliseconds: posMs),
+      play: false,
+    );
+    _attachTracker();
+    _miniSubs.add(child.commands.listen(_onMiniCommand));
+    await _enterMini();
+    await windowManager.show();
+    if (playing) await c.player.play();
+  }
+
+  /// Watches what is played so the main window can add it to the history.
+  void _attachTracker() {
+    var lastPath = c.currentPath;
+    _tracker.trackChanged(lastPath, countPlay: false); // main counted this one
+    c.addListener(() {
+      final p = c.currentPath;
+      if (p != lastPath) {
+        lastPath = p;
+        _tracker.trackChanged(p);
+      }
+    });
+    _miniSubs.add(c.player.stream.playing.listen(_tracker.playingChanged));
+    _miniSubs.add(
+      c.player.stream.position.listen(
+        (pos) => _tracker.progress(
+          pos.inMilliseconds,
+          c.player.state.duration.inMilliseconds,
+        ),
+      ),
+    );
+  }
+
+  /// "Play this" and friends, forwarded by the main window.
+  void _onMiniCommand(Json m) {
+    List<String> paths() => [
+      for (final p in (m['paths'] as List? ?? const <Object?>[])) '$p',
+    ];
+    switch (m['cmd']) {
+      case 'open':
+        final list = paths();
+        final at = m['posMs'];
+        if (at is int && list.length == 1) {
+          c.openAt(list.first, Duration(milliseconds: at));
+        } else {
+          c.openPaths(list, start: m['start'] is int ? m['start'] as int : 0);
+        }
+      case 'add':
+        c.addPaths(paths());
+      case 'toggle':
+        c.togglePlay();
+      case 'next':
+        c.next();
+      case 'prev':
+        c.previous();
+      case 'return':
+        _finishMini('expand');
+    }
+  }
+
+  /// Hands playback back to the main window and quits this process.
+  /// [evt] is 'expand' (carry on there) or 'close' (leave it paused).
+  Future<void> _finishMini(String evt) async {
+    if (_miniFinishing) return;
+    _miniFinishing = true;
+    final child = widget.miniChild!;
+    final prefs = {
+      for (final k in miniPrefKeys)
+        if (s.prefs.get(k) != null) k: s.prefs.get(k),
+    };
+    final delivered = await child.finish(
+      evt,
+      state: c.snapshot(),
+      prefs: prefs,
+      history: _tracker.results(),
+    );
+    if (!delivered && evt == 'expand') {
+      // The main window was closed meanwhile: open the app again with this file.
+      final path = c.currentPath;
+      try {
+        await Process.start(Platform.resolvedExecutable, [
+          ?path,
+        ], mode: ProcessStartMode.detached);
+      } on Object catch (e) {
+        debugPrint('Could not reopen the main window: $e');
+      }
+    }
+    exit(0);
+  }
+
+  /// The mini player's own close button / Alt+F4.
+  void _closeMini() {
+    if (widget.miniChild != null) {
+      _finishMini('close');
+    } else {
+      windowManager.close();
+    }
+  }
+
+  @override
+  void onWindowClose() {
+    if (widget.miniChild != null) _finishMini('close');
+  }
+
   Future<void> _enterMini() async {
     if (_mini) return;
     if (_fullscreen) await _toggleFullscreen(false);
@@ -178,7 +370,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
       await c.setAudioOnly(true);
     }
     final pos = s.miniRememberPos ? s.miniPosition : null;
-    _miniOriginOnce = pos ?? _fullBounds!.topLeft;
+    _miniOriginOnce = pos ?? widget.miniChild?.origin ?? _fullBounds!.topLeft;
     await _applyMiniSize();
     await windowManager.setAlwaysOnTop(s.miniOnTop);
     await windowManager.setOpacity(s.miniOpacity / 100);
@@ -194,6 +386,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   Future<void> _exitMini() async {
     if (!_mini) return;
+    // In the separate mini player, "expand" means: back to the main window.
+    if (widget.miniChild != null) return _finishMini('expand');
     // Stop any in-flight mini resize from fighting the restore below.
     _miniResizePending = false;
     _miniApplied = null;
@@ -264,6 +458,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   @override
   void dispose() {
     _resizeDebounce?.cancel();
+    for (final sub in _miniSubs) {
+      sub.cancel();
+    }
+    widget.miniHost?.removeListener(_onMiniHost);
     windowManager.removeListener(this);
     c.removeListener(_onControllerChanged);
     super.dispose();
@@ -274,6 +472,12 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     super.initState();
     windowManager.addListener(this);
     c.addListener(_onControllerChanged);
+    widget.miniHost?.addListener(_onMiniHost);
+    if (widget.miniChild != null) {
+      // The separate mini player: play what the main window handed over.
+      unawaited(_bootMiniProcess());
+      return;
+    }
     final args = widget.initialArgs.where(isSupportedMedia).toList();
     if (args.isNotEmpty) {
       c.openPaths(args);
@@ -303,7 +507,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   Future<void> _pickFile() async {
     final paths = await _pickFiles();
     if (paths.isEmpty) return;
-    setState(() => _home = false);
+    _showPlayer();
     await c.openPaths(paths);
   }
 
@@ -319,12 +523,12 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     if (dir == null) return;
     final files = mediaInFolder(dir);
     if (files.isEmpty) return;
-    setState(() => _home = false);
+    _showPlayer();
     await c.openPaths(files);
   }
 
   Future<void> _resume(HistoryEntry e) async {
-    setState(() => _home = false);
+    _showPlayer();
     await c.openAt(e.path, Duration(milliseconds: e.posMs));
   }
 
@@ -351,7 +555,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
       case 'open':
         _pickFile();
       case 'mini':
-        _mini ? _exitMini() : _enterMini();
+        _mini ? _exitMini() : _openMini();
       case 'next':
         c.next();
       case 'prev':
@@ -409,7 +613,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                   paths.add(p);
                 }
               }
-              if (paths.isNotEmpty) setState(() => _home = false);
+              if (paths.isNotEmpty) _showPlayer();
               c.openPaths(paths);
             },
             child: Scaffold(
@@ -431,6 +635,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                           setState(() {});
                         },
                         onToggleVideo: _toggleMiniVideo,
+                        onClose: _closeMini,
                         onExpand: _exitMini,
                       ),
                     )
@@ -467,10 +672,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                   playlists: widget.playlists,
                                   onOpenFile: _pickFile,
                                   onOpenFolder: _openFolderFromHome,
-                                  onMini: _enterMini,
+                                  onMini: _openMini,
                                   onSettings: _openSettings,
-                                  onOpenPlayer: () =>
-                                      setState(() => _home = false),
+                                  onOpenPlayer: _showPlayer,
+                                  miniHost: widget.miniHost,
                                   onResume: _resume,
                                 )
                               : Row(
@@ -492,7 +697,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                               onSettings: openSettings,
                                               onToggleQueue: toggleQueue,
                                               onFullscreen: _toggleFullscreen,
-                                              onMini: _enterMini,
+                                              onMini: _openMini,
                                             );
                                           }
                                           return Column(
@@ -506,7 +711,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                                       _toggleFullscreen,
                                                   onSettings: openSettings,
                                                   onToggleQueue: toggleQueue,
-                                                  onMini: _enterMini,
+                                                  onMini: _openMini,
                                                 ),
                                             ],
                                           );

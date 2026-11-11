@@ -1,10 +1,14 @@
+import 'dart:io' show exit;
+
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/legacy.dart';
 
 import 'player_controller/player_controller.dart';
+import 'services/app_mini_port.dart';
 import 'services/history_service.dart';
 import 'services/library_service.dart';
+import 'services/mini_ipc.dart';
 import 'services/playlist_service.dart';
 import 'services/settings_service.dart';
 import 'ui/player_page.dart';
@@ -16,15 +20,34 @@ Future<void> main(List<String> args) async {
   await windowManager.ensureInitialized();
 
   final settings = await AppSettings.load();
-  final saved = settings.rememberWindow ? settings.windowBounds : null;
-  final options = WindowOptions(
-    size: saved?.size ?? const Size(1280, 760),
-    minimumSize: const Size(640, 420),
-    center: saved == null,
-    title: 'NSL Media Player',
-    titleBarStyle: TitleBarStyle.hidden,
-  );
+
+  // Started by the main window as the separate mini player? Then connect to it
+  // first: it tells us what to play. If it cannot be reached, just quit.
+  final miniArgs = parseMiniArgs(args);
+  final miniChild = miniArgs == null ? null : await MiniChild.connect(miniArgs);
+  if (miniArgs != null && miniChild == null) exit(1);
+
+  final saved = miniChild == null && settings.rememberWindow
+      ? settings.windowBounds
+      : null;
+  final options = miniChild != null
+      ? const WindowOptions(
+          size: Size(420, 248),
+          minimumSize: Size(200, 100),
+          center: false,
+          title: 'NSL Mini',
+          titleBarStyle: TitleBarStyle.hidden,
+        )
+      : WindowOptions(
+          size: saved?.size ?? const Size(1280, 760),
+          minimumSize: const Size(640, 420),
+          center: saved == null,
+          title: 'NSL Media Player',
+          titleBarStyle: TitleBarStyle.hidden,
+        );
   await windowManager.waitUntilReadyToShow(options, () async {
+    // The mini player window is shown by the page once it has its size.
+    if (miniChild != null) return;
     if (saved != null) await windowManager.setPosition(saved.topLeft);
     await windowManager.show();
     await windowManager.focus();
@@ -32,9 +55,20 @@ Future<void> main(List<String> args) async {
 
   final controller = NslPlayerController(settings.prefs);
   controller.seekStep = settings.seekStep;
-  final history = HistoryService(settings.prefs, controller, settings);
+  // The mini player process reports to the main window instead of writing
+  // history (two processes must not both write the preferences file).
+  final history = HistoryService(
+    settings.prefs,
+    controller,
+    settings,
+    miniChild == null,
+  );
   final library = LibraryService(settings.prefs);
   final playlists = PlaylistService();
+  final miniHost = miniChild == null
+      ? MiniHost(AppMiniPort(controller, history, settings))
+      : null;
+  controller.remote = miniHost;
   runApp(
     NslApp(
       controller: controller,
@@ -42,18 +76,21 @@ Future<void> main(List<String> args) async {
       history: history,
       library: library,
       playlists: playlists,
+      miniHost: miniHost,
+      miniChild: miniChild,
       initialArgs: args,
     ),
   );
-  _applyPlayerSettings(controller, settings);
+  _applyPlayerSettings(controller, settings, mini: miniChild != null);
 }
 
 /// Applies saved player options. Runs after the first frame is on screen and
 /// never blocks startup: a failing native call must not leave a blank window.
 Future<void> _applyPlayerSettings(
   NslPlayerController controller,
-  AppSettings settings,
-) async {
+  AppSettings settings, {
+  bool mini = false,
+}) async {
   Future<void> safe(Future<void> Function() f) async {
     try {
       await f();
@@ -62,12 +99,14 @@ Future<void> _applyPlayerSettings(
     }
   }
 
+  // The mini player takes volume and speed from the main window instead, and
+  // decides about video itself.
   final vol = settings.defaultVolume;
-  if (vol != null) await safe(() => controller.setVolume(vol));
-  await safe(() => controller.setSpeed(settings.defaultSpeed));
+  if (!mini && vol != null) await safe(() => controller.setVolume(vol));
+  if (!mini) await safe(() => controller.setSpeed(settings.defaultSpeed));
   await safe(() => controller.setHwdec(settings.hwdec));
   await safe(() => controller.setAutoNext(settings.autoNext));
-  if (settings.audioOnlyDefault) {
+  if (!mini && settings.audioOnlyDefault) {
     await safe(() => controller.setAudioOnly(true));
   }
 }
@@ -81,6 +120,8 @@ class NslApp extends StatelessWidget {
     required this.library,
     required this.playlists,
     required this.initialArgs,
+    this.miniHost,
+    this.miniChild,
   });
 
   final NslPlayerController controller;
@@ -88,6 +129,8 @@ class NslApp extends StatelessWidget {
   final HistoryService history;
   final LibraryService library;
   final PlaylistService playlists;
+  final MiniHost? miniHost;
+  final MiniChild? miniChild;
   final List<String> initialArgs;
 
   @override
@@ -106,6 +149,8 @@ class NslApp extends StatelessWidget {
           history: history,
           library: library,
           playlists: playlists,
+          miniHost: miniHost,
+          miniChild: miniChild,
           initialArgs: initialArgs,
         ),
       ),
