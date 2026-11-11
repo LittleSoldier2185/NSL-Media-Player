@@ -86,6 +86,9 @@ class AppSettings extends ChangeNotifier {
   /// 'auto' | 'on' | 'off'
   String get hwdec => _prefs.getString('hwdec') ?? 'auto';
 
+  /// Start (and keep) video files in audio-only mode.
+  bool get audioOnlyDefault => _prefs.getBool('audioOnlyDefault') ?? false;
+
   // --- Mini player ---
   bool get miniRememberPos => _prefs.getBool('miniRememberPos') ?? true;
 

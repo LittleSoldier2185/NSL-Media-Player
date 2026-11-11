@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
@@ -162,14 +163,28 @@ class ControlsBar extends StatelessWidget {
                       for (final h in controller.qualityOptions)
                         CheckedPopupMenuItem(
                           value: h,
-                          checked: h == eff,
-                          child: Text(h == 0 ? 'Original' : '${h}p'),
+                          checked:
+                              controller.quality ==
+                                  NslPlayerController.qualityAuto
+                              ? h == NslPlayerController.qualityAuto
+                              : h == eff,
+                          child: Text(
+                            h == 0
+                                ? 'Original'
+                                : h == NslPlayerController.qualityAuto
+                                ? 'Auto'
+                                : '${h}p',
+                          ),
                         ),
                     ],
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       child: Text(
-                        eff == 0 ? 'Original' : '${eff}p',
+                        controller.quality == NslPlayerController.qualityAuto
+                            ? 'Auto'
+                            : eff == 0
+                            ? 'Original'
+                            : '${eff}p',
                         style: TextStyle(
                           color: p.icon,
                           fontWeight: FontWeight.w500,
@@ -179,6 +194,7 @@ class ControlsBar extends StatelessWidget {
                   );
                 },
               ),
+              TracksButton(controller: controller),
               IconBtn(Icons.queue_music, onToggleQueue, tooltip: 'Queue'),
               IconBtn(
                 Icons.picture_in_picture_alt,
@@ -196,6 +212,106 @@ class ControlsBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Menu to pick the audio track / subtitle track or load a subtitle file.
+class TracksButton extends StatelessWidget {
+  const TracksButton({super.key, required this.controller});
+  final NslPlayerController controller;
+
+  static const _loadSubs = '__load__';
+  static const _subsOff = '__off__';
+
+  Future<void> _onSelected(String v) async {
+    if (v == _loadSubs) {
+      final r = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['srt', 'ass', 'ssa', 'vtt', 'sub'],
+      );
+      final path = r?.files.single.path;
+      if (path != null) await controller.loadSubtitleFile(path);
+    } else if (v == _subsOff) {
+      await controller.disableSubtitles();
+    } else if (v.startsWith('a:')) {
+      final id = v.substring(2);
+      await controller.setAudioTrack(
+        controller.audioTracks.firstWhere((t) => t.id == id),
+      );
+    } else if (v.startsWith('s:')) {
+      final id = v.substring(2);
+      await controller.setSubtitleTrack(
+        controller.subtitleTracks.firstWhere((t) => t.id == id),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        if (controller.current == null) return const SizedBox.shrink();
+        final p = context.pal;
+        final audio = controller.audioTracks;
+        final subs = controller.subtitleTracks;
+        final curA = controller.currentAudioTrack.id;
+        final curS = controller.currentSubtitleTrack.id;
+        final header = TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: p.icon,
+        );
+        return PopupMenuButton<String>(
+          tooltip: 'Audio & subtitles',
+          onSelected: _onSelected,
+          icon: Icon(
+            Icons.subtitles_outlined,
+            color: controller.subtitlesOff ? p.icon : p.accentInk,
+          ),
+          itemBuilder: (_) => [
+            if (audio.length > 1) ...[
+              PopupMenuItem<String>(
+                enabled: false,
+                height: 28,
+                child: Text('AUDIO', style: header),
+              ),
+              for (final t in audio)
+                CheckedPopupMenuItem<String>(
+                  value: 'a:${t.id}',
+                  checked: t.id == curA,
+                  child: Text(
+                    NslPlayerController.trackLabel(t.id, t.title, t.language),
+                  ),
+                ),
+              const PopupMenuDivider(),
+            ],
+            PopupMenuItem<String>(
+              enabled: false,
+              height: 28,
+              child: Text('SUBTITLES', style: header),
+            ),
+            CheckedPopupMenuItem<String>(
+              value: _subsOff,
+              checked: controller.subtitlesOff,
+              child: const Text('Off'),
+            ),
+            for (final t in subs)
+              CheckedPopupMenuItem<String>(
+                value: 's:${t.id}',
+                checked: t.id == curS,
+                child: Text(
+                  NslPlayerController.trackLabel(t.id, t.title, t.language),
+                ),
+              ),
+            const PopupMenuItem<String>(
+              value: _loadSubs,
+              child: Text('Load subtitle file…'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

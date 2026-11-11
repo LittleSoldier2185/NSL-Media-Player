@@ -2,7 +2,32 @@
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
-## สถานะล่าสุด — 2026-11-09
+## สถานะล่าสุด — 2026-11-11
+
+### ทำเสร็จ (เซสชันนี้)
+- **Installer (Milestone 3)**: `installer/nsl_media_player.iss` ติดตั้งแบบ per-user เขียน HKCU (ProgID, Applications, Capabilities, RegisteredApplications, `OpenWithProgids` 11 นามสกุล) ไม่แย่ง default ของแอปอื่น การ์ด Default player ใน Settings นับจาก `OpenWithProgids`
+- **Video quality Auto**: ลดเหลือ 480p เมื่อย่อหน้าต่าง/เข้า mini player (`reducedLoad` ใน controller) ค่า quality จำไว้อยู่แล้ว
+- **Audio only by default**: สวิตช์ใน Settings > Video
+- **ซับไตเติล + เลือกแทร็กเสียง/ซับ**: `TracksButton` ใน `controls.dart` โหลดไฟล์ .srt/.ass/.vtt ได้
+- **Mini player**: เพิ่มความสูงหน้าต่าง 232 → 248 กันแถบ seek ซ้อน Opacity
+- `flutter analyze` รันได้แล้ว: ไม่มี error/warning เหลือแค่ info เรื่อง `windowManager` deprecated (legacy API)
+- `flutter build windows --release` ผ่าน และเปิด exe ได้ไม่ค้าง (ตรวจแค่ว่าหน้าต่างขึ้น ไม่ได้กดทดสอบฟีเจอร์)
+
+### ยังไม่ได้ยืนยันบนเครื่องจริง (ต้องกดทดสอบเอง)
+- Mini player หลังเพิ่มความสูง: แถบ seek ยังซ้อนกับ Opacity หรือไม่
+- Open file / Open folder / ลากไฟล์วาง (file_picker 6.2.1)
+- Hardware decoding และ "เล่นต่ออัตโนมัติ"
+- Quality Auto และ Audio only by default
+- ซับไตเติล: ซับขึ้นบนวิดีโอจริงไหม, สลับแทร็กเสียง
+- Installer: ยังไม่ได้คอมไพล์ (ต้องติดตั้ง Inno Setup) และยังไม่ได้ทดสอบดับเบิลคลิกไฟล์
+
+### ค้างอยู่
+- Audio-only ตอนหน้าต่างถูกบัง (ไม่มี event ใน window_manager ต้องใช้ native hook)
+- Milestone 4 ทั้งหมด, SMTC/media keys, ตั้งปุ่มลัดเอง
+
+---
+
+## สถานะก่อนหน้า — 2026-11-09
 
 ### ทำเสร็จ
 - **ซิงก์ Plan.md กับโค้ด**: ติ๊ก 40 รายการที่มีโค้ดอยู่แล้ว (queue, Mixed Playlist, Audio-only, Video quality, mini player, ธีม, Home) และระบุรายการที่ยังไม่ทำ
@@ -27,7 +52,7 @@
 - การเปลี่ยนค่า hardware decoding และ "เล่นต่ออัตโนมัติ" (ใช้ mpv `keep-open`) ว่าทำงานตามที่ตั้ง
 
 ### หมายเหตุสภาพแวดล้อม
-- `pubspec.yaml` ระบุ `sdk: ^3.13.7` เครื่องที่ใช้ตรวจโค้ดในเซสชันนี้มี Dart 3.13.5 จึงรัน `flutter analyze` ใน `lib/` ไม่ได้โดยตรง ต้องอัปเดต Flutter หรือใช้สำเนาที่ลดข้อกำหนด
+- (แก้แล้ว 2026-11-11) `flutter analyze` และ `flutter build windows` รันได้ปกติบนเครื่องนี้
 - หลังเปลี่ยน plugin ต้องรัน `flutter pub get` แล้ว `flutter run -d windows` ใหม่ (hot restart ไม่พอ)
 
 ## ขั้นถัดไป (เสนอ)

@@ -279,9 +279,10 @@ class _SettingsPageState extends State<SettingsPage> {
             _seg<int>(
               p,
               'Maximum quality',
-              'Limits the picture size. A file is never shown larger than its own resolution.',
+              'Limits the picture size. A file is never shown larger than its own resolution. Auto drops to 480p while the window is minimized.',
               {
                 0: 'Original',
+                NslPlayerController.qualityAuto: 'Auto',
                 for (final h in NslPlayerController.qualityHeights) h: '${h}p',
               },
               c.quality,
@@ -304,6 +305,16 @@ class _SettingsPageState extends State<SettingsPage> {
               'Stop decoding video while the window is minimized to save CPU and GPU.',
               s.autoAudioOnly,
               s.setAutoAudioOnly,
+            ),
+            _toggle(
+              p,
+              'Audio only by default',
+              'Play video files as audio only (no picture) until you turn the picture on with A.',
+              s.audioOnlyDefault,
+              (v) {
+                s.put('audioOnlyDefault', v);
+                c.setAudioOnly(v);
+              },
             ),
           ]),
         ];
@@ -462,8 +473,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ---- Default player card ----
 
-  /// Extensions registered by the installer (Milestone 3) are read from the
-  /// registry; until the installer exists this shows 0.
+  /// Extensions registered by the installer (installer/nsl_media_player.iss)
+  /// appear under `OpenWithProgids`; without the installer this shows 0.
   int _registeredCount() {
     if (!Platform.isWindows) return 0;
     var n = 0;
@@ -472,11 +483,11 @@ class _SettingsPageState extends State<SettingsPage> {
       try {
         final r = Process.runSync('reg', [
           'query',
-          r'HKCU\Software\Classes\.' + e,
-          '/ve',
+          r'HKCU\Software\Classes\.' + e + r'\OpenWithProgids',
+          '/v',
+          'NslMediaPlayer.File',
         ]);
-        final out = r.stdout.toString();
-        if (r.exitCode == 0 && out.contains('NslMediaPlayer')) n++;
+        if (r.exitCode == 0) n++;
       } on ProcessException {
         return 0;
       }

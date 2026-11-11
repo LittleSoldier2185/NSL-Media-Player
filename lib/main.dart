@@ -61,6 +61,9 @@ Future<void> _applyPlayerSettings(
   await safe(() => controller.setSpeed(settings.defaultSpeed));
   await safe(() => controller.setHwdec(settings.hwdec));
   await safe(() => controller.setAutoNext(settings.autoNext));
+  if (settings.audioOnlyDefault) {
+    await safe(() => controller.setAudioOnly(true));
+  }
 }
 
 class NslApp extends StatelessWidget {

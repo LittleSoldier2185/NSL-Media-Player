@@ -56,7 +56,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   bool _mini = false;
   bool _miniAudioOnly = false; // audio-only switched on by entering mini
   Rect? _fullBounds;
-  static const _miniSize = Size(420, 232);
+  static const _miniSize = Size(420, 248);
 
   NslPlayerController get c => widget.controller;
   AppSettings get s => widget.settings;
@@ -85,6 +85,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     await windowManager.setResizable(false);
     await windowManager.setAlwaysOnTop(s.miniOnTop);
     await windowManager.setOpacity(s.miniOpacity / 100);
+    c.setReducedLoad(true);
     // Mini + audio-only is the lightest combination.
     if (c.isVideoFile && !c.audioOnly) {
       _miniAudioOnly = true;
@@ -102,6 +103,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     final b = _fullBounds;
     if (b != null) await windowManager.setBounds(b);
     setState(() => _mini = false);
+    c.setReducedLoad(false);
     if (_miniAudioOnly) {
       _miniAudioOnly = false;
       await c.setAudioOnly(false);
@@ -128,6 +130,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   void onWindowMinimize() {
+    c.setReducedLoad(true);
     if (widget.settings.autoAudioOnly && c.isVideoFile && !c.audioOnly) {
       _autoAudioOnly = true;
       c.setAudioOnly(true);
@@ -136,6 +139,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   void onWindowRestore() {
+    c.setReducedLoad(_mini);
     if (_autoAudioOnly) {
       _autoAudioOnly = false;
       c.setAudioOnly(false);

@@ -36,6 +36,8 @@ class NslPlayerController extends ChangeNotifier {
       _applyQuality();
       notifyListeners();
     });
+    player.stream.tracks.listen((_) => notifyListeners());
+    player.stream.track.listen((_) => notifyListeners());
     player.stream.playlist.listen((pl) {
       if (pl.index != index) {
         index = pl.index;
@@ -64,8 +66,22 @@ class NslPlayerController extends ChangeNotifier {
   int seekStep = 5;
   int _speedIndex = 2;
 
-  /// Chosen max height in px; 0 = Original.
+  /// Chosen max height in px; 0 = Original, [qualityAuto] = Auto.
   int quality = 0;
+
+  /// Auto quality: Original normally, [autoReducedHeight] while [reducedLoad].
+  static const qualityAuto = -1;
+  static const autoReducedHeight = 480;
+
+  /// True while the picture is barely visible (minimized / mini player).
+  bool reducedLoad = false;
+
+  Future<void> setReducedLoad(bool v) async {
+    if (reducedLoad == v) return;
+    reducedLoad = v;
+    if (quality == qualityAuto) await _applyQuality();
+    notifyListeners();
+  }
 
   /// Height of the current video in px (0 if unknown / audio).
   int sourceHeight = 0;
@@ -75,13 +91,18 @@ class NslPlayerController extends ChangeNotifier {
   /// Options at or below the source height. Never offers an upscale.
   List<int> get qualityOptions => [
     0,
+    qualityAuto,
     for (final h in qualityHeights)
       if (h <= sourceHeight) h,
   ];
 
   /// The height actually in effect (0 = Original).
-  int get effectiveQuality =>
-      quality != 0 && quality < sourceHeight ? quality : 0;
+  int get effectiveQuality {
+    final target = quality == qualityAuto
+        ? (reducedLoad ? autoReducedHeight : 0)
+        : quality;
+    return target != 0 && target < sourceHeight ? target : 0;
+  }
 
   Future<void> setQuality(int h) async {
     quality = h;
@@ -201,6 +222,49 @@ class NslPlayerController extends ChangeNotifier {
   void setFilter(QueueFilter f) {
     filter = f;
     notifyListeners();
+  }
+
+  // --- Audio / subtitle tracks ---
+
+  static bool _real(String id) => id != 'auto' && id != 'no';
+
+  /// Selectable audio tracks of the current file (excludes mpv's auto/no).
+  List<AudioTrack> get audioTracks => [
+    for (final t in player.state.tracks.audio)
+      if (_real(t.id)) t,
+  ];
+
+  /// Selectable subtitle tracks (embedded and externally loaded).
+  List<SubtitleTrack> get subtitleTracks => [
+    for (final t in player.state.tracks.subtitle)
+      if (_real(t.id)) t,
+  ];
+
+  AudioTrack get currentAudioTrack => player.state.track.audio;
+  SubtitleTrack get currentSubtitleTrack => player.state.track.subtitle;
+
+  /// True when subtitles are switched off.
+  bool get subtitlesOff => currentSubtitleTrack.id == 'no';
+
+  Future<void> setAudioTrack(AudioTrack t) => player.setAudioTrack(t);
+
+  Future<void> setSubtitleTrack(SubtitleTrack t) => player.setSubtitleTrack(t);
+
+  Future<void> disableSubtitles() =>
+      player.setSubtitleTrack(SubtitleTrack.no());
+
+  /// Loads an external subtitle file (.srt, .ass, ...) and selects it.
+  Future<void> loadSubtitleFile(String path) => player.setSubtitleTrack(
+    SubtitleTrack.uri(Uri.file(path).toString(), title: fileNameOf(path)),
+  );
+
+  /// Human-readable label for a track.
+  static String trackLabel(String id, String? title, String? language) {
+    final parts = [
+      if (title != null && title.isNotEmpty) title,
+      if (language != null && language.isNotEmpty) language,
+    ];
+    return parts.isEmpty ? 'Track $id' : parts.join(' · ');
   }
 
   /// Audio-only: stop decoding video (mpv `vid=no`) instead of just hiding it.
