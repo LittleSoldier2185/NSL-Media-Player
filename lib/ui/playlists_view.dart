@@ -6,7 +6,9 @@ import '../player_controller/player_controller.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/playlist_service.dart';
+import '../services/thumbnail_service.dart';
 import 'controls.dart';
+import 'library_thumb.dart';
 import 'playlist_dialogs.dart';
 import 'theme.dart';
 
@@ -347,7 +349,8 @@ class _PlaylistsViewState extends State<PlaylistsView> {
                             item.artist,
                           _parentOf(path),
                         ].join(' · '),
-                        isVideo: videoExtensions.contains(extensionOf(path)),
+                        path: path,
+                        thumbnails: widget.library.thumbnails,
                         missing: missing[i],
                         playing: path == widget.controller.currentPath,
                         onTap: () => _play(pl, start: i),
@@ -373,7 +376,8 @@ class _TrackRow extends StatelessWidget {
     required this.index,
     required this.title,
     required this.subtitle,
-    required this.isVideo,
+    required this.path,
+    required this.thumbnails,
     required this.missing,
     required this.playing,
     required this.onTap,
@@ -383,7 +387,8 @@ class _TrackRow extends StatelessWidget {
   final int index;
   final String title;
   final String subtitle;
-  final bool isVideo;
+  final String path;
+  final ThumbnailService thumbnails;
   final bool missing;
   final bool playing;
   final VoidCallback onTap;
@@ -423,19 +428,14 @@ class _TrackRow extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: p.track,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  missing
-                      ? Icons.link_off
-                      : isVideo
-                      ? Icons.movie_outlined
-                      : Icons.music_note,
-                  size: 18,
-                  color: p.textDim,
-                ),
+                child: missing
+                    ? Icon(Icons.link_off, size: 18, color: p.textDim)
+                    : PathThumb(path: path, thumbnails: thumbnails),
               ),
               const SizedBox(width: 12),
               Expanded(

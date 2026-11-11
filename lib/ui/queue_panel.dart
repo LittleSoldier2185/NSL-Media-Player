@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/playlist_service.dart';
+import '../services/thumbnail_service.dart';
+import 'library_thumb.dart';
 import 'playlist_dialogs.dart';
 import 'theme.dart';
 
@@ -10,12 +12,14 @@ class QueuePanel extends StatelessWidget {
     super.key,
     required this.controller,
     required this.playlists,
+    required this.thumbnails,
     required this.onAddFiles,
     required this.onAddFolder,
   });
 
   final NslPlayerController controller;
   final PlaylistService playlists;
+  final ThumbnailService thumbnails;
   final VoidCallback onAddFiles;
   final VoidCallback onAddFolder;
 
@@ -96,6 +100,7 @@ class QueuePanel extends StatelessWidget {
                           final e = items[k];
                           return _QueueRow(
                             item: e.value,
+                            thumbnails: thumbnails,
                             playing: e.key == controller.index,
                             onTap: () => controller.playIndex(e.key),
                             onRemove: () => controller.removeAt(e.key),
@@ -154,12 +159,14 @@ class QueuePanel extends StatelessWidget {
 class _QueueRow extends StatelessWidget {
   const _QueueRow({
     required this.item,
+    required this.thumbnails,
     required this.playing,
     required this.onTap,
     required this.onRemove,
   });
 
   final QueueItem item;
+  final ThumbnailService thumbnails;
   final bool playing;
   final VoidCallback onTap;
   final VoidCallback onRemove;
@@ -189,14 +196,15 @@ class _QueueRow extends StatelessWidget {
                   Container(
                     width: 40,
                     height: 40,
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: p.track,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      item.isVideo ? Icons.movie_outlined : Icons.music_note,
-                      size: 18,
-                      color: playing ? p.accentInk : p.textDim,
+                    child: PathThumb(
+                      path: item.path,
+                      thumbnails: thumbnails,
+                      iconSize: 18,
                     ),
                   ),
                   const SizedBox(width: 12),

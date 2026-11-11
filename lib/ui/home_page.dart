@@ -8,7 +8,9 @@ import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/mini_ipc.dart';
 import '../services/playlist_service.dart';
+import '../services/thumbnail_service.dart';
 import 'controls.dart';
+import 'library_thumb.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';
 import 'theme.dart';
@@ -248,7 +250,11 @@ class _HomePageState extends State<HomePage> {
               for (final e in items)
                 SizedBox(
                   width: 260,
-                  child: _ResumeCard(entry: e, onTap: () => widget.onResume(e)),
+                  child: _ResumeCard(
+                    entry: e,
+                    thumbnails: widget.library.thumbnails,
+                    onTap: () => widget.onResume(e),
+                  ),
                 ),
             ],
           ),
@@ -606,8 +612,13 @@ class _Nav extends StatelessWidget {
 }
 
 class _ResumeCard extends StatelessWidget {
-  const _ResumeCard({required this.entry, required this.onTap});
+  const _ResumeCard({
+    required this.entry,
+    required this.thumbnails,
+    required this.onTap,
+  });
   final HistoryEntry entry;
+  final ThumbnailService thumbnails;
   final VoidCallback onTap;
 
   @override
@@ -640,14 +651,14 @@ class _ResumeCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
+              SizedBox(
                 height: 100,
-                color: p.track,
-                alignment: Alignment.center,
-                child: Icon(
-                  entry.isVideo ? Icons.movie_outlined : Icons.music_note,
-                  size: 20,
-                  color: p.textDim,
+                child: PathThumb(
+                  path: entry.path,
+                  thumbnails: thumbnails,
+                  // A video frame fills the card; square album art is shown whole.
+                  fit: entry.isVideo ? BoxFit.cover : BoxFit.contain,
+                  iconSize: 28,
                 ),
               ),
               Padding(

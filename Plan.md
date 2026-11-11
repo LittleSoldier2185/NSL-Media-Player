@@ -95,7 +95,7 @@ installer/
 - [x] **Thumbnail ใน Library** (`ThumbnailService`): ปกอัลบั้มที่ฝังในไฟล์ (หรือ cover.jpg/folder.jpg ในโฟลเดอร์) สำหรับเพลง, เฟรมที่ 10% ของไฟล์สำหรับวิดีโอ (ดึงด้วย media_kit แบบไม่มีหน้าต่าง), cache บนดิสก์ที่ `%APPDATA%\NSL Media Player\thumbs` (PNG 256px) + memory, คิวทำทีละวิดีโอ/ข้ามแถวที่เลื่อนผ่าน, ปุ่ม Clear thumbnails ใน Settings > Library
 - [x] **Grid view ใน Library**: สลับ List/Grid (จำค่าไว้), การ์ด 16:9 พร้อม badge ความยาว, เลือกหลายรายการ/เมนู ⋮ ใช้ได้ทั้งสองโหมด
   - [ ] ยังไม่ได้ทดสอบ UI บนเครื่องจริง (ทดสอบ logic ด้วย unit test และการดึงเฟรมวิดีโอจริงด้วยโปรแกรมทดลองแล้ว)
-  - [ ] Playlists ยังไม่แสดง thumbnail (ใช้ไอคอน)
+  - [x] Thumbnail แสดงที่การ์ด Continue (Home), รายการในเพลย์ลิสต์ และแผงคิวด้วย (ใช้แคชเดียวกับ Library)
 - [x] ค้นหาและจัดเรียง library (ค้นหา title/artist/album, กรอง All/Music/Videos, เรียง Title/Artist/Album/Recently added)
 - [x] **Playlists ที่ตั้งชื่อและบันทึกได้** (`PlaylistService`, `playlists_view.dart`) ไฟล์มาจากโฟลเดอร์ไหนก็ได้
   - [x] สร้าง/เปลี่ยนชื่อ/ลบ หลายเพลย์ลิสต์ (ชื่อไม่ซ้ำ), เก็บที่ `%APPDATA%\NSL Media Player\playlists.json`

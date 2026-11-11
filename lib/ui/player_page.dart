@@ -722,6 +722,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                       QueuePanel(
                                         controller: c,
                                         playlists: widget.playlists,
+                                        thumbnails: widget.library.thumbnails,
                                         onAddFiles: _addFiles,
                                         onAddFolder: _addFolder,
                                       ),
