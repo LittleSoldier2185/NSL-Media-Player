@@ -741,48 +741,74 @@ class _NowPlayingBar extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         if (controller.current == null) return const SizedBox.shrink();
+        final title = Text(
+          controller.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: p.text,
+          ),
+        );
+        final transport = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconBtn(
+              Icons.skip_previous,
+              controller.previous,
+              tooltip: 'Previous',
+            ),
+            StreamBuilder<bool>(
+              stream: pl.stream.playing,
+              initialData: pl.state.playing,
+              builder: (_, s) => PlayButton(
+                playing: s.data ?? false,
+                onTap: controller.togglePlay,
+                size: 40,
+              ),
+            ),
+            IconBtn(Icons.skip_next, controller.next, tooltip: 'Next'),
+            const SizedBox(width: 12),
+            TextButton.icon(
+              onPressed: onOpenPlayer,
+              icon: const Icon(Icons.open_in_full, size: 16),
+              label: const Text('Open player'),
+            ),
+          ],
+        );
+        final seek = SeekRow(controller: controller);
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           decoration: BoxDecoration(
             color: p.panelTop,
             border: Border(top: BorderSide(color: p.panelBorder)),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  controller.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: p.text,
+          // Wide: title | time bar | buttons on one line. Narrow: the time
+          // bar gets a line of its own so nothing is squeezed.
+          child: LayoutBuilder(
+            builder: (context, box) => box.maxWidth >= 880
+                ? Row(
+                    children: [
+                      Expanded(flex: 3, child: title),
+                      const SizedBox(width: 20),
+                      Expanded(flex: 5, child: seek),
+                      const SizedBox(width: 12),
+                      transport,
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: title),
+                          transport,
+                        ],
+                      ),
+                      seek,
+                    ],
                   ),
-                ),
-              ),
-              IconBtn(
-                Icons.skip_previous,
-                controller.previous,
-                tooltip: 'Previous',
-              ),
-              StreamBuilder<bool>(
-                stream: pl.stream.playing,
-                initialData: pl.state.playing,
-                builder: (_, s) => PlayButton(
-                  playing: s.data ?? false,
-                  onTap: controller.togglePlay,
-                  size: 40,
-                ),
-              ),
-              IconBtn(Icons.skip_next, controller.next, tooltip: 'Next'),
-              const SizedBox(width: 12),
-              TextButton.icon(
-                onPressed: onOpenPlayer,
-                icon: const Icon(Icons.open_in_full, size: 16),
-                label: const Text('Open player'),
-              ),
-            ],
           ),
         );
       },
