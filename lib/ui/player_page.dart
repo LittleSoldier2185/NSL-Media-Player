@@ -368,6 +368,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         c.addPaths(paths());
       case 'toggle':
         c.togglePlay();
+      case 'pause':
+        c.player.pause();
       case 'next':
         c.next();
       case 'prev':

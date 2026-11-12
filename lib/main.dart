@@ -11,6 +11,8 @@ import 'services/library_service.dart';
 import 'services/mini_ipc.dart';
 import 'services/playlist_service.dart';
 import 'services/settings_service.dart';
+import 'services/sleep_port.dart';
+import 'services/sleep_timer.dart';
 import 'services/smtc_service.dart';
 import 'ui/player_page.dart';
 import 'ui/theme.dart';
@@ -70,6 +72,12 @@ Future<void> main(List<String> args) async {
       ? MiniHost(AppMiniPort(controller, history, settings))
       : null;
   controller.remote = miniHost;
+  if (miniChild == null) {
+    controller.sleep = SleepTimer(
+      ControllerSleepPort(controller),
+      fade: () => Duration(seconds: settings.sleepFadeSeconds),
+    );
+  }
   runApp(
     NslApp(
       controller: controller,

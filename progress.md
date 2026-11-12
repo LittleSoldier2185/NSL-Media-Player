@@ -1,7 +1,7 @@
 # NSL Media Player — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-4 done, next Phase 5 (Phase 6 พักไว้)
+Overall status: Phase 1-5 done, next Phase 7 (Phase 6 พักไว้ รอผู้ใช้เรียก)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -44,8 +44,13 @@ Overall status: Phase 1-4 done, next Phase 5 (Phase 6 พักไว้)
 - [x] analyze ไม่มี error/warning, test 125 ผ่าน, build release + เปิดแอปผ่าน
 - ใช้ `PopupMenuButton` ที่มีรายการเดียวเป็นแผงของเราเอง (ปิดเมื่อคลิกนอกกล่อง) ยังไม่ได้ลองกดจริง → Phase 8 (โดยเฉพาะ: กด chip แล้วกล่องไม่ปิดเองและอัปเดตค่า)
 
-### Phase 5: Sleep timer — [ ] not started
-- [ ] นับถอยหลัง / ตั้งเวลานาฬิกา / หยุดเมื่อจบไฟล์ / fade out แล้ว pause / แสดงเวลาที่เหลือ / ใช้ได้ใน mini player
+### Phase 5: Sleep timer — [x] done (2026-11-12)
+- [x] `lib/services/sleep_timer.dart` (ตรรกะล้วน ทดสอบได้) + `sleep_port.dart` (ต่อกับ controller): นับถอยหลัง 15/30/45/60/90 / กำหนดนาทีเอง / ตั้งเวลานาฬิกา (ถ้าผ่านแล้วถือเป็นพรุ่งนี้) / หยุดเมื่อจบไฟล์; ใช้ `DateTime` เป้าหมายเทียบนาฬิกา ไม่เพี้ยนตอนเครื่อง sleep
+- [x] fade out ก่อน pause แล้วคืนระดับเสียง (ตั้งได้ที่ Settings > Playback > Sleep timer fade-out: Off/5/10/30 วิ, ค่าเริ่มต้น 10); ยกเลิกระหว่าง fade ก็คืนเสียง; ไม่ปิดแอป
+- [x] UI: ส่วน "Sleep timer" ใน Quick settings แสดงเวลาที่เหลือ + Cancel, ไอคอน tune สว่างเมื่อมีตัวจับเวลา
+- [x] ใช้ได้ตอน mini player แยกโปรเซสเปิดอยู่: ตัวจับเวลาอยู่ที่แอปหลัก สั่ง pause ไปที่ mini ผ่าน IPC (`{cmd: pause}` ใหม่); ข้อจำกัด: ไม่ fade และโหมด "จบไฟล์" รอไม่ได้ (ไม่รู้เวลาที่เหลือ) ใน mini
+- [x] unit test 7 ข้อ (`test/sleep_timer_test.dart`) รวม 132 ข้อผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
+- ยังไม่ได้ลองกดจริง/ฟังเสียง fade และทดสอบ mini จริง → Phase 8
 
 ### Phase 6: Upscale GLSL — [ ] พักไว้ (ON HOLD) ห้ามเริ่มจนกว่าผู้ใช้เรียก
 - [ ] ทดลอง shader กับ media_kit, Settings Off/Fast/Quality, แพ็ก .glsl, ปิดเมื่อ `reducedLoad`

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/media_types.dart';
 import '../services/mini_ipc.dart';
+import '../services/sleep_timer.dart';
 
 class QueueItem {
   QueueItem(this.path)
@@ -174,6 +175,9 @@ class NslPlayerController extends ChangeNotifier {
   /// While a separate mini player is open it is the one playing: requests
   /// made in the main window are forwarded to it instead.
   RemotePlayback? remote;
+
+  /// Stops playback later (set up by the main window only).
+  SleepTimer? sleep;
   bool get _forwarding => remote?.active ?? false;
 
   /// Replaces the queue with [paths] and starts playing.

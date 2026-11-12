@@ -291,6 +291,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 c.seekStep = v;
               },
             ),
+            _seg<int>(
+              p,
+              'Sleep timer fade-out',
+              'The volume fades down this long before the sleep timer pauses.',
+              {0: 'Off', 5: '5 s', 10: '10 s', 30: '30 s'},
+              s.sleepFadeSeconds,
+              (v) => s.put('sleepFadeSeconds', v),
+            ),
           ]),
         ];
       case _Cat.video:

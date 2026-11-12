@@ -86,6 +86,9 @@ class AppSettings extends ChangeNotifier {
   double get defaultSpeed => _prefs.getDouble('defaultSpeed') ?? 1.0;
   int get seekStep => _prefs.getInt('seekStep') ?? 5;
 
+  /// Seconds the volume fades out before the sleep timer pauses (0 = no fade).
+  int get sleepFadeSeconds => _prefs.getInt('sleepFadeSeconds') ?? 10;
+
   // --- Shortcuts ---
   ShortcutBindings get shortcuts =>
       ShortcutBindings.fromJson(_prefs.getString('shortcuts'));

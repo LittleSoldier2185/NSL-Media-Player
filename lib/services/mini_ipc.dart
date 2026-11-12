@@ -14,7 +14,7 @@ import 'package:flutter/foundation.dart';
 /// main -> mini
 ///   `{cmd: init, queue, index, posMs, playing, volume, speed}`  what to play
 ///   `{cmd: open, paths, start, posMs?}` / `{cmd: add, paths}`    forwarded
-///   `{cmd: toggle | next | prev}`                               forwarded
+///   `{cmd: toggle | pause | next | prev}`                             forwarded
 ///   `{cmd: return}`                                             bring it back
 /// mini -> main
 ///   `{evt: hello, token}`                                       handshake
@@ -62,6 +62,7 @@ abstract class RemotePlayback {
   Future<void> open(List<String> paths, {int start = 0, Duration? at});
   Future<void> add(List<String> paths);
   void toggle();
+  void pause();
   void next();
   void previous();
 }
@@ -307,6 +308,9 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
 
   @override
   void toggle() => _send({'cmd': 'toggle'});
+
+  @override
+  void pause() => _send({'cmd': 'pause'});
 
   @override
   void next() => _send({'cmd': 'next'});

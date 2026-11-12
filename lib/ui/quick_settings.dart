@@ -1,7 +1,9 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../player_controller/player_controller.dart';
+import '../services/sleep_timer.dart';
 import 'theme.dart';
 
 /// Lets the user pick a subtitle file and loads it into the player.
@@ -25,11 +27,14 @@ class QuickSettingsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([controller, ?controller.sleep]),
       builder: (context, _) {
         final p = context.pal;
         // Lit when something differs from the plain defaults.
-        final changed = controller.speed != 1.0 || !controller.subtitlesOff;
+        final changed =
+            controller.speed != 1.0 ||
+            !controller.subtitlesOff ||
+            (controller.sleep?.active ?? false);
         return PopupMenuButton<void>(
           tooltip: 'Quick settings',
           icon: Icon(Icons.tune, color: changed ? p.accentInk : p.icon),
@@ -55,7 +60,7 @@ class QuickSettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([controller, ?controller.sleep]),
       builder: (context, _) {
         final p = context.pal;
         final c = controller;
@@ -143,10 +148,103 @@ class QuickSettingsPanel extends StatelessWidget {
                   onPressed: () => pickSubtitleFile(c),
                 ),
               ]),
+            if (c.sleep != null)
+              _SleepSection(timer: c.sleep!, section: section, chip: chip),
             const SizedBox(height: 12),
           ],
         );
       },
     );
+  }
+}
+
+String _clock(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:$m:$s' : '${d.inMinutes}:$s';
+}
+
+class _SleepSection extends StatelessWidget {
+  const _SleepSection({
+    required this.timer,
+    required this.section,
+    required this.chip,
+  });
+  final SleepTimer timer;
+  final Widget Function(String, List<Widget>) section;
+  final Widget Function(String, bool, VoidCallback) chip;
+
+  Future<void> _custom(BuildContext context) async {
+    final ctl = TextEditingController();
+    final minutes = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Stop after how many minutes?'),
+        content: TextField(
+          controller: ctl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(suffixText: 'minutes'),
+          onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, int.tryParse(ctl.text)),
+            child: const Text('Start'),
+          ),
+        ],
+      ),
+    );
+    ctl.dispose();
+    if (minutes != null && minutes > 0) {
+      timer.startCountdown(Duration(minutes: minutes));
+    }
+  }
+
+  Future<void> _atTime(BuildContext context) async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+        DateTime.now().add(const Duration(hours: 1)),
+      ),
+    );
+    if (t != null) timer.startAt(t.hour, t.minute);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    if (timer.active) {
+      final r = timer.remaining;
+      final d = timer.deadline;
+      final text = switch (timer.mode) {
+        SleepMode.endOfItem => 'Stops when this file ends',
+        SleepMode.clock =>
+          'Stops at ${TimeOfDay.fromDateTime(d!).format(context)} · in ${_clock(r!)}',
+        _ => 'Stops in ${_clock(r!)}',
+      };
+      return section('Sleep timer', [
+        Text(text, style: TextStyle(fontSize: 13, color: p.text)),
+        ActionChip(
+          avatar: const Icon(Icons.close, size: 16),
+          label: const Text('Cancel', style: TextStyle(fontSize: 12.5)),
+          visualDensity: VisualDensity.compact,
+          onPressed: timer.cancel,
+        ),
+      ]);
+    }
+    return section('Sleep timer', [
+      for (final m in const [15, 30, 45, 60, 90])
+        chip('$m min', false, () => timer.startCountdown(Duration(minutes: m))),
+      chip('End of file', false, timer.startEndOfItem),
+      chip('At time…', false, () => _atTime(context)),
+      chip('Custom…', false, () => _custom(context)),
+    ]);
   }
 }
