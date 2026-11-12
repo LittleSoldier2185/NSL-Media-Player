@@ -1,7 +1,7 @@
 # NSL Media Player — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-2 done, next Phase 3 (Phase 6 พักไว้)
+Overall status: Phase 1-3 done, next Phase 4 (Phase 6 พักไว้)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -31,8 +31,12 @@ Overall status: Phase 1-2 done, next Phase 3 (Phase 6 พักไว้)
 - ข้อจำกัด v1: ยังไม่ส่งปกอัลบั้ม/ศิลปิน (controller ไม่มี tag), mini player แยกโปรเซสไม่มี SMTC (ตอนใช้ mini แผงของแอปหลักจะถูกปิดไว้)
 - ยังไม่ได้ทดสอบกดปุ่ม media key จริง / ดูแผงเสียงของ Windows — ไปอยู่ Phase 8
 
-### Phase 3: ตั้งปุ่มลัดเอง — [ ] not started
-- [ ] หน้า Shortcuts ใน Settings + Reset to defaults
+### Phase 3: ตั้งปุ่มลัดเอง — [x] done (2026-11-12)
+- [x] `lib/services/shortcut_bindings.dart` (ShortcutAction/KeyCombo/ShortcutBindings เก็บเฉพาะที่แก้เป็น JSON ใน prefs key `shortcuts`), `lib/ui/shortcut_editor.dart` (dialog เพิ่ม/ลบปุ่มโดยกดปุ่มจริง, ชนกับ action อื่นจะถามก่อนย้าย, Reset to default ต่อ action)
+- [x] Settings > Shortcuts: ปุ่มดินสอต่อแถว + "Reset all to defaults"; `player_page.dart` สร้าง Shortcuts จาก settings และรีบิลด์เมื่อแก้
+- [x] ตัวกัน "พิมพ์ในช่องค้นหา" ใช้ได้กับปุ่มที่ตั้งเอง (plain = ไม่มี Ctrl/Alt)
+- [x] unit test 5 ข้อ (`test/shortcut_bindings_test.dart`) รวม 125 ข้อผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
+- ข้อจำกัด: mini player (โปรเซสแยก) อ่านปุ่มตอนเปิดครั้งต่อไป; ยังไม่ได้ลองกดตั้งปุ่มบนหน้าจอจริง → Phase 8
 
 ### Phase 4: กล่องลอยตั้งค่าด่วนในหน้าเล่น — [ ] not started
 - [ ] ปุ่มฟันเฟือง: คุณภาพ, ความเร็ว, ซับ/แทร็กเสียง (ยังไม่ใส่ตัวเลือก upscale)

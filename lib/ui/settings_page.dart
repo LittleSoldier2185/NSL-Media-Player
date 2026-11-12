@@ -8,6 +8,8 @@ import '../services/history_service.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/settings_service.dart';
+import '../services/shortcut_bindings.dart';
+import 'shortcut_editor.dart';
 import 'theme.dart';
 
 enum _Cat {
@@ -520,11 +522,16 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final (title, items) in _shortcutSections(s, c)) ...[
+                for (final section in const [
+                  'Playback',
+                  'Sound',
+                  'Window and view',
+                  'Files',
+                ]) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
                     child: Text(
-                      title.toUpperCase(),
+                      section.toUpperCase(),
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -533,9 +540,22 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                   ),
-                  _group(p, [for (final sc in items) _shortcutRow(p, sc)]),
+                  _group(p, [
+                    for (final a in ShortcutAction.values)
+                      if (a.section == section) _shortcutRow(p, a, s, c),
+                  ]),
                   const SizedBox(height: 22),
                 ],
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: s.shortcuts.hasCustom
+                        ? () => s.setShortcuts(ShortcutBindings())
+                        : null,
+                    child: const Text('Reset all to defaults'),
+                  ),
+                ),
+                const SizedBox(height: 14),
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
                   child: Text(
@@ -718,82 +738,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ---- Shortcuts ----
 
-  static List<(String, List<_Shortcut>)> _shortcutSections(
+  Widget _shortcutRow(
+    NslPalette p,
+    ShortcutAction a,
     AppSettings s,
     NslPlayerController c,
-  ) => [
-    (
-      'Playback',
-      [
-        const _Shortcut('Play / pause', [
-          ['Space'],
-          ['K'],
-        ]),
-        _Shortcut('Seek back', const [
-          ['←'],
-        ], hint: '${s.seekStep} seconds'),
-        _Shortcut('Seek forward', const [
-          ['→'],
-        ], hint: '${s.seekStep} seconds'),
-        const _Shortcut('Next item', [
-          ['N'],
-        ]),
-        const _Shortcut('Previous item', [
-          ['P'],
-        ]),
-      ],
-    ),
-    (
-      'Sound',
-      [
-        const _Shortcut('Volume up', [
-          ['↑'],
-        ], hint: '5%'),
-        const _Shortcut('Volume down', [
-          ['↓'],
-        ], hint: '5%'),
-        const _Shortcut('Mute', [
-          ['M'],
-        ]),
-      ],
-    ),
-    (
-      'Window and view',
-      [
-        const _Shortcut('Fullscreen', [
-          ['F'],
-          ['F11'],
-        ]),
-        const _Shortcut('Exit fullscreen', [
-          ['Esc'],
-        ]),
-        const _Shortcut('Audio only on / off', [
-          ['A'],
-        ], hint: 'Stops decoding the picture to save CPU and GPU'),
-        const _Shortcut('Home', [
-          ['H'],
-        ]),
-        const _Shortcut('Show / hide sidebar', [
-          ['Ctrl', 'B'],
-        ]),
-        const _Shortcut('Mini player', [
-          ['Ctrl', 'M'],
-        ]),
-      ],
-    ),
-    (
-      'Files',
-      [
-        const _Shortcut('Open file', [
-          ['Ctrl', 'O'],
-        ]),
-      ],
-    ),
-  ];
-
-  Widget _shortcutRow(NslPalette p, _Shortcut sc) {
+  ) {
+    final combos = s.shortcuts.combosFor(a);
+    final hint = switch (a) {
+      ShortcutAction.back || ShortcutAction.fwd => '${s.seekStep} seconds',
+      ShortcutAction.volup || ShortcutAction.voldown => '5%',
+      ShortcutAction.audio => 'Stops decoding the picture to save CPU and GPU',
+      _ => null,
+    };
     final alts = <Widget>[];
-    for (var i = 0; i < sc.alternatives.length; i++) {
+    for (var i = 0; i < combos.length; i++) {
       if (i > 0) {
         alts.add(
           Padding(
@@ -802,24 +761,15 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         );
       }
-      final combo = sc.alternatives[i];
-      for (var k = 0; k < combo.length; k++) {
-        if (k > 0) {
-          alts.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                '+',
-                style: TextStyle(fontSize: 12, color: p.textDim),
-              ),
-            ),
-          );
-        }
-        alts.add(_keyCap(p, combo[k]));
-      }
+      alts.add(ComboCaps(combos[i]));
+    }
+    if (combos.isEmpty) {
+      alts.add(
+        Text('Not set', style: TextStyle(fontSize: 12.5, color: p.textDim)),
+      );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Expanded(
@@ -827,18 +777,18 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  sc.action,
+                  a.label,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: p.text,
                   ),
                 ),
-                if (sc.hint != null)
+                if (hint != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      sc.hint!,
+                      hint,
                       style: TextStyle(fontSize: 12, color: p.textDim),
                     ),
                   ),
@@ -847,31 +797,19 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(width: 16),
           Row(mainAxisSize: MainAxisSize.min, children: alts),
+          IconButton(
+            tooltip: 'Change keys',
+            icon: Icon(
+              s.shortcuts.isCustom(a) ? Icons.edit : Icons.edit_outlined,
+              size: 18,
+              color: s.shortcuts.isCustom(a) ? p.accentInk : p.icon,
+            ),
+            onPressed: () => showShortcutEditor(context, s, a),
+          ),
         ],
       ),
     );
   }
-
-  /// A key drawn like a keyboard key (raised, with a lower edge).
-  Widget _keyCap(NslPalette p, String label) => Container(
-    constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
-    padding: const EdgeInsets.symmetric(horizontal: 10),
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: p.track,
-      borderRadius: BorderRadius.circular(7),
-      border: Border.all(color: p.border),
-      boxShadow: [BoxShadow(color: p.border, offset: const Offset(0, 2))],
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontSize: 12.5,
-        fontWeight: FontWeight.w600,
-        color: p.text,
-      ),
-    ),
-  );
 
   Widget _card(NslPalette p, Widget child) => Container(
     decoration: BoxDecoration(
@@ -1094,14 +1032,4 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     );
   }
-}
-
-/// One keyboard shortcut: what it does and the key(s) that trigger it. Each
-/// entry of [alternatives] is one way to do it; keys inside it are pressed
-/// together (so `['Ctrl', 'M']` is Ctrl + M, and two entries are "A or B").
-class _Shortcut {
-  const _Shortcut(this.action, this.alternatives, {this.hint});
-  final String action;
-  final List<List<String>> alternatives;
-  final String? hint;
 }

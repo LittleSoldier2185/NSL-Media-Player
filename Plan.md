@@ -129,7 +129,7 @@ installer/
 - [x] **หน้า Settings เต็มรูปแบบ** (ตามบอร์ด "Settings" ในดีไซน์)
   - [x] 7 หมวด: General, Playback, Video, Mini player, Library, Shortcuts, About
   - [x] การ์ด Default player (ปุ่มเปิด Windows Default apps + จำนวนนามสกุลที่ตั้งแล้ว)
-  - [ ] หน้าตั้งปุ่มลัด + Reset to defaults
+  - [x] หน้าตั้งปุ่มลัด + Reset to defaults (กดดินสอที่แถว → กดปุ่มใหม่, เตือนถ้าชน; ยังไม่ได้ทดสอบบนเครื่องจริง)
   - [x] ธีมและ accent (ย้ายเข้าหน้า Settings แล้ว)
   - [ ] ยังไม่มีในหน้า Settings (รอฟีเจอร์ต้นทาง): ภาษา, Windows media controls (SMTC), ซับไตเติล, click-through, โฟลเดอร์ Library
 - [x] **Sidebar นำทาง + ปุ่ม Home ลอยบนภาพ** (ออกแบบ B + C ตาม mockup)

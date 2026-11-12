@@ -637,32 +637,16 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    return Shortcuts(
-      shortcuts: const {
-        SingleActivator(LogicalKeyboardKey.space): _NslIntent('play'),
-        SingleActivator(LogicalKeyboardKey.keyK): _NslIntent('play'),
-        SingleActivator(LogicalKeyboardKey.arrowLeft): _NslIntent('back'),
-        SingleActivator(LogicalKeyboardKey.arrowRight): _NslIntent('fwd'),
-        SingleActivator(LogicalKeyboardKey.arrowUp): _NslIntent('volup'),
-        SingleActivator(LogicalKeyboardKey.arrowDown): _NslIntent('voldown'),
-        SingleActivator(LogicalKeyboardKey.keyM): _NslIntent('mute'),
-        SingleActivator(LogicalKeyboardKey.keyF): _NslIntent('fs'),
-        SingleActivator(LogicalKeyboardKey.keyA): _NslIntent('audio'),
-        SingleActivator(LogicalKeyboardKey.f11): _NslIntent('fs'),
-        SingleActivator(LogicalKeyboardKey.escape): _NslIntent('exitfs'),
-        SingleActivator(LogicalKeyboardKey.keyM, control: true): _NslIntent(
-          'mini',
-        ),
-        SingleActivator(LogicalKeyboardKey.keyN): _NslIntent('next'),
-        SingleActivator(LogicalKeyboardKey.keyP): _NslIntent('prev'),
-        SingleActivator(LogicalKeyboardKey.keyO, control: true): _NslIntent(
-          'open',
-        ),
-        SingleActivator(LogicalKeyboardKey.keyH): _NslIntent('home'),
-        SingleActivator(LogicalKeyboardKey.keyB, control: true): _NslIntent(
-          'sidebar',
-        ),
-      },
+    // Rebuilt when the user changes a key binding in Settings.
+    return ListenableBuilder(
+      listenable: widget.settings,
+      builder: (context, child) => Shortcuts(
+        shortcuts: {
+          for (final (a, combo) in widget.settings.shortcuts.allCombos())
+            combo.activator: _NslIntent(a.id, plain: combo.plain),
+        },
+        child: child!,
+      ),
       child: Actions(
         actions: {
           // Plain keys step aside while the user types in a text field.
@@ -905,11 +889,11 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 }
 
 class _NslIntent extends Intent {
-  const _NslIntent(this.name);
+  const _NslIntent(this.name, {required this.plain});
   final String name;
 
-  /// A single key with no Ctrl: must not fire while the user is typing.
-  bool get plain => !const {'mini', 'open', 'sidebar'}.contains(name);
+  /// A key without Ctrl / Alt: must not fire while the user is typing.
+  final bool plain;
 }
 
 class _MusicView extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../ui/theme.dart';
+import 'shortcut_bindings.dart';
 
 /// Persisted appearance settings (theme mode + accent color).
 class AppSettings extends ChangeNotifier {
@@ -84,6 +85,18 @@ class AppSettings extends ChangeNotifier {
   double? get defaultVolume => _prefs.getDouble('defaultVolume');
   double get defaultSpeed => _prefs.getDouble('defaultSpeed') ?? 1.0;
   int get seekStep => _prefs.getInt('seekStep') ?? 5;
+
+  // --- Shortcuts ---
+  ShortcutBindings get shortcuts =>
+      ShortcutBindings.fromJson(_prefs.getString('shortcuts'));
+
+  void setShortcuts(ShortcutBindings b) {
+    final json = b.toJson();
+    json == null
+        ? _prefs.remove('shortcuts')
+        : _prefs.setString('shortcuts', json);
+    notifyListeners();
+  }
 
   // --- Video ---
   /// 'auto' | 'on' | 'off'
