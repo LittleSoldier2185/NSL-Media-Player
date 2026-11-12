@@ -66,7 +66,8 @@ Future<void> main(List<String> args) async {
     settings,
     miniChild == null,
   );
-  final library = LibraryService(settings.prefs);
+  // Only the main window rescans: two processes must not write the index.
+  final library = LibraryService(settings.prefs, autoRescan: miniChild == null);
   final playlists = PlaylistService();
   final miniHost = miniChild == null
       ? MiniHost(AppMiniPort(controller, history, settings))

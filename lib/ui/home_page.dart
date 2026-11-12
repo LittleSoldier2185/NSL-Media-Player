@@ -14,6 +14,7 @@ import 'controls.dart';
 import 'history_view.dart';
 import 'home_sections.dart';
 import 'library_thumb.dart';
+import 'kind_pages.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';
 import 'sidebar.dart';
@@ -121,6 +122,14 @@ class _HomePageState extends State<HomePage> {
               playlists: widget.playlists,
               controller: widget.controller,
               onOpenPlayer: widget.onOpenPlayer,
+            ),
+            NavDest.photos => PhotosView(
+              library: widget.library,
+              onOpenLibrary: widget.onOpenLibrary,
+            ),
+            NavDest.books => BooksView(
+              library: widget.library,
+              onOpenLibrary: widget.onOpenLibrary,
             ),
             NavDest.history => HistoryView(
               history: widget.history,

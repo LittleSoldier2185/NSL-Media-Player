@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 in progress (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, next Phase 11 (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -66,7 +66,12 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 ### Phase 9: ออกแบบ UI ส่วนใหม่ (artifact) — [x] done (2026-11-12)
 - [x] ออกแบบหน้า Photos / ตัวดูรูป / ชั้นหนังสือ / ตัวอ่าน PDF / Home-sidebar 4 ชนิด + แถบ Now playing เป็น artifact "NSL Resonance — Photos & Books Design" (https://claude.ai/artifact/6TQysy21QuvvhzhvgaGuhM); ผู้ใช้สั่งเริ่มลงมือส่วนสื่อใหม่ก่อน ส่วนการเชื่อมต่อมือถือ (Milestone 7) ไว้ทีหลัง
 - ไม่ได้ออกแบบ: หน้าตั้งค่าโฟลเดอร์รูป/PDF, สไลด์โชว์เต็มจอ, หน้าแก้ไขอัลบั้ม
-### Phase 10: ขยายโมเดล Library เป็น 4 ชนิด — [ ] not started
+### Phase 10: ขยายโมเดล Library เป็น 4 ชนิด — [x] done (2026-11-12)
+- [x] `media_types.dart`: `MediaKind` (audio/video/image/pdf), `kindOf`, `isLibraryFile`; `isSupportedMedia` ยังหมายถึง "เล่นได้" (เสียง/วิดีโอ) เท่านั้น รูป/PDF จึงไม่เข้าคิวเล่นเมื่อเปิดโฟลเดอร์หรือลากไฟล์
+- [x] `LibraryService`: เก็บทุกชนิดใน `_all`, `items` ยังเป็นเฉพาะที่เล่นได้ (ทุกหน้าเดิมจึงไม่เปลี่ยน), เพิ่ม `images`/`books`/`imageCount`/`bookCount`; รูป/PDF ใช้ชื่อไฟล์เป็นชื่อ (รายละเอียด EXIF/PDF มาพร้อมตัวดู); index เก่าถูกสแกนใหม่ครั้งเดียวในเบื้องหลัง (`libraryKindsVersion`), mini player โปรเซสแยกไม่สแกน (`autoRescan: false`)
+- [x] sidebar เพิ่ม Photos และ Books (หน้า placeholder `kind_pages.dart` แสดงจำนวนที่เจอ รอ Phase 11-12); ยังไม่ได้ปรับ Home (แท็บ Photos/Books) — ไปพร้อมหน้าจริง
+- [x] test เพิ่ม 5 ข้อ (`test/media_kinds_test.dart`) รวม 139 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน; ยังไม่ได้ลองกดหน้า Photos/Books จริง
+- หมายเหตุ: ไฟล์ HEIC/HEIF ยังไม่ถูกนับเป็นรูป (เพิ่มใน Phase 11 พร้อมตัวแปลง)
 ### Phase 11: รูปภาพ (Photos, อัลบั้ม, ตัวดูรูป, HEIC, กันรูปซ้ำ) — [ ] not started
 ### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started
 ### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก

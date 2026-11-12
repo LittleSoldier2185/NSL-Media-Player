@@ -3,7 +3,16 @@ import 'package:flutter/material.dart';
 import 'theme.dart';
 
 /// Where the sidebar can take you.
-enum NavDest { home, library, playlists, history, player, settings }
+enum NavDest {
+  home,
+  library,
+  photos,
+  books,
+  playlists,
+  history,
+  player,
+  settings,
+}
 
 /// How much of the sidebar is shown.
 enum SidebarMode {
@@ -28,7 +37,7 @@ enum SidebarMode {
   };
 }
 
-/// Left navigation: Home, Library, Playlists, Player and Settings, shown on
+/// Left navigation: Home, Library, Photos, Books, Playlists, History, Player and Settings, shown on
 /// every page so any of them is one click away. Can be collapsed to icons or
 /// hidden.
 class AppSidebar extends StatelessWidget {
@@ -50,6 +59,8 @@ class AppSidebar extends StatelessWidget {
   static const _items = [
     (NavDest.home, Icons.home_outlined, 'Home', 'Home (H)'),
     (NavDest.library, Icons.folder_outlined, 'Library', 'Library'),
+    (NavDest.photos, Icons.photo_library_outlined, 'Photos', 'Photos'),
+    (NavDest.books, Icons.menu_book_outlined, 'Books', 'Books'),
     (NavDest.playlists, Icons.queue_music_outlined, 'Playlists', 'Playlists'),
     (NavDest.history, Icons.history, 'History', 'History'),
     (NavDest.player, Icons.play_circle_outline, 'Player', 'Player'),

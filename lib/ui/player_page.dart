@@ -108,6 +108,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
           if (!_miniOpen) _home = false;
         case NavDest.home ||
             NavDest.library ||
+            NavDest.photos ||
+            NavDest.books ||
             NavDest.playlists ||
             NavDest.history:
           _settingsOpen = false;

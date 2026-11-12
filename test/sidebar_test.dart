@@ -33,6 +33,8 @@ void main() {
     for (final label in [
       'Home',
       'Library',
+      'Photos',
+      'Books',
       'Playlists',
       'History',
       'Player',

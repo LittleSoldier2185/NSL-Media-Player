@@ -32,6 +32,13 @@ class LibraryItem {
 
   bool get isVideo => videoExtensions.contains(extensionOf(path));
 
+  /// Audio, video, image or PDF (an unknown extension counts as audio, the
+  /// kind the index held before pictures and books were added).
+  MediaKind get kind => kindOf(path) ?? MediaKind.audio;
+
+  /// Can be played (audio or video).
+  bool get isPlayable => kind == MediaKind.audio || kind == MediaKind.video;
+
   Map<String, dynamic> toJson() => {
     'p': path,
     't': title,
@@ -88,12 +95,26 @@ enum LibrarySort { title, artist, album, recent }
 /// next start; a rescan only re-reads tags of new or changed files.
 class LibraryService extends ChangeNotifier {
   /// [indexFile] overrides where the index is cached (used by tests).
-  LibraryService(this._prefs, {File? indexFile, ThumbnailService? thumbnails})
-    : _indexOverride = indexFile,
-      thumbnails = thumbnails ?? ThumbnailService() {
+  LibraryService(
+    this._prefs, {
+    File? indexFile,
+    ThumbnailService? thumbnails,
+    bool autoRescan = true,
+  }) : _indexOverride = indexFile,
+       thumbnails = thumbnails ?? ThumbnailService() {
     _folders.addAll(_prefs.getStringList('libraryFolders') ?? const []);
     _loadIndex();
+    // An index from before pictures and PDFs were kept does not know about
+    // them: look through the folders once more, in the background.
+    if (autoRescan &&
+        _folders.isNotEmpty &&
+        (_prefs.getInt(_kindsKey) ?? 0) < _kindsVersion) {
+      scheduleMicrotask(scan);
+    }
   }
+
+  static const _kindsKey = 'libraryKindsVersion';
+  static const _kindsVersion = 2;
 
   final SharedPreferences _prefs;
   final File? _indexOverride;
@@ -101,6 +122,12 @@ class LibraryService extends ChangeNotifier {
   /// Preview pictures (cover art / video frames) for the files in the library.
   final ThumbnailService thumbnails;
   final List<String> _folders = [];
+
+  /// Every file in the library folders: music, video, pictures and PDFs.
+  List<LibraryItem> _all = [];
+
+  /// Only what can be played (music and video). Everything that lists or
+  /// plays media uses this, so pictures and books never reach the play queue.
   List<LibraryItem> _items = [];
 
   bool scanning = false;
@@ -109,6 +136,36 @@ class LibraryService extends ChangeNotifier {
 
   List<String> get folders => List.unmodifiable(_folders);
   List<LibraryItem> get items => _items;
+
+  /// Pictures in the library folders (newest first).
+  List<LibraryItem> get images => _ofKind(MediaKind.image);
+
+  /// PDF books in the library folders (by title).
+  List<LibraryItem> get books => _ofKind(MediaKind.pdf);
+
+  int get imageCount => _all.where((i) => i.kind == MediaKind.image).length;
+  int get bookCount => _all.where((i) => i.kind == MediaKind.pdf).length;
+
+  List<LibraryItem> _ofKind(MediaKind k) {
+    final out = [
+      for (final i in _all)
+        if (i.kind == k) i,
+    ];
+    out.sort(
+      k == MediaKind.image
+          ? (a, b) => b.modified.compareTo(a.modified)
+          : (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    );
+    return out;
+  }
+
+  void _setAll(List<LibraryItem> all) {
+    _all = all;
+    _items = [
+      for (final i in all)
+        if (i.isPlayable) i,
+    ];
+  }
 
   // ---- folders ----
 
@@ -155,10 +212,10 @@ class LibraryService extends ChangeNotifier {
     _folders.remove(dir);
     _prefs.setStringList('libraryFolders', _folders);
     // Keep files that another saved folder still covers.
-    _items = [
-      for (final i in _items)
+    _setAll([
+      for (final i in _all)
         if (_folders.any((f) => isUnder(i.path, f))) i,
-    ];
+    ]);
     await _saveIndex();
     notifyListeners();
   }
@@ -178,7 +235,7 @@ class LibraryService extends ChangeNotifier {
       if (f == null || !f.existsSync()) return;
       final j = jsonDecode(f.readAsStringSync());
       if (j is List) {
-        _items = j.map(LibraryItem.fromJson).whereType<LibraryItem>().toList();
+        _setAll(j.map(LibraryItem.fromJson).whereType<LibraryItem>().toList());
       }
     } on Object catch (e) {
       debugPrint('Could not read library index: $e');
@@ -190,7 +247,7 @@ class LibraryService extends ChangeNotifier {
       final f = _indexFile;
       if (f == null) return;
       await f.parent.create(recursive: true);
-      await f.writeAsString(jsonEncode(_items.map((i) => i.toJson()).toList()));
+      await f.writeAsString(jsonEncode(_all.map((i) => i.toJson()).toList()));
     } on Object catch (e) {
       debugPrint('Could not write library index: $e');
     }
@@ -206,7 +263,7 @@ class LibraryService extends ChangeNotifier {
     scanTotal = 0;
     notifyListeners();
     try {
-      final known = {for (final i in _items) i.path: i};
+      final known = {for (final i in _all) i.path: i};
       final found = <File>[];
       final seen = <String>{}; // overlapping folders must not list a file twice
       for (final dir in _folders) {
@@ -214,7 +271,7 @@ class LibraryService extends ChangeNotifier {
           dir,
         ).list(recursive: true, followLinks: false).handleError((_) {})) {
           if (e is File &&
-              isSupportedMedia(e.path) &&
+              isLibraryFile(e.path) &&
               seen.add(e.path.toLowerCase())) {
             found.add(e);
           }
@@ -237,7 +294,8 @@ class LibraryService extends ChangeNotifier {
           await Future<void>.delayed(Duration.zero);
         }
       }
-      _items = result;
+      _setAll(result);
+      await _prefs.setInt(_kindsKey, _kindsVersion);
       await _saveIndex();
     } finally {
       scanning = false;
@@ -247,8 +305,10 @@ class LibraryService extends ChangeNotifier {
 
   LibraryItem _read(File f, int modified) {
     final fallback = _stripExt(fileNameOf(f.path));
-    // Video files are listed by file name; only audio tags are read.
-    if (videoExtensions.contains(extensionOf(f.path))) {
+    // Everything but music is listed by file name; only audio tags are read
+    // (picture and book details come with the viewers).
+    final kind = kindOf(f.path);
+    if (kind != null && kind != MediaKind.audio) {
       return LibraryItem(path: f.path, title: fallback, modified: modified);
     }
     try {
@@ -368,7 +428,7 @@ class LibraryService extends ChangeNotifier {
   /// Replaces the index without scanning (tests).
   @visibleForTesting
   void setItemsForTest(List<LibraryItem> items) {
-    _items = items;
+    _setAll(items);
     notifyListeners();
   }
 
