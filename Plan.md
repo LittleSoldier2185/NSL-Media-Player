@@ -146,6 +146,7 @@ installer/
   - [x] **หน้า History** (เมนูที่ 5 ใน sidebar): จัดกลุ่ม Today / Yesterday / Earlier this week / Earlier, กรอง All/Videos/Music, ค้นหา, แถบความคืบหน้า, เมนู ⋮ (Play / Add to playlist / Remove from history), Clear history (ยืนยันก่อน), ไฟล์ที่หายแสดงจาง; ประวัติเก็บ 200 รายการ (เดิม 30)
   - [ ] ยังไม่ได้ทดสอบหน้าตา/การใช้งานจริงบนเครื่อง (ทดสอบ logic: ตัวสุ่ม, การจัดกลุ่มอัลบั้ม, การจัดกลุ่มประวัติ, เวลา)
 - [ ] **Upscale วิดีโอแบบ real-time ด้วย GLSL shader** (Anime4K / FSR / FSRCNNX ผ่าน mpv `glsl-shaders`)
+  - ⏸ **พักไว้: อยู่ในแผนแต่ยังไม่ทำ จนกว่าผู้ใช้จะเรียกให้เริ่ม** (ไม่ต้องใส่ตัวเลือก upscale ในกล่องตั้งค่าด่วนก่อน)
   - [ ] ทดลองก่อนว่า shader ทำงานกับ `media_kit` (render ผ่าน texture) บนเครื่องจริงได้ครบหรือไม่
   - [ ] ตัวสเกลพื้นฐานของ mpv (`scale`/`cscale`/`dscale` = `ewa_lanczossharp`/`spline36`, `deband`) เป็นค่าเริ่มต้นที่ดีขึ้น
   - [ ] แพ็กไฟล์ `.glsl` ไปกับแอปและ installer
