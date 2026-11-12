@@ -74,9 +74,14 @@ class MiniPlayer extends StatelessWidget {
     required this.onToggleVideo,
     required this.onClose,
     required this.onExpand,
+    this.blur = false,
   });
 
   final NslPlayerController controller;
+
+  /// The window has a blurred backdrop: the card paints no background of its
+  /// own so the blur shows through.
+  final bool blur;
   final int opacity;
   final bool onTop;
   final ValueChanged<int> onOpacity;
@@ -118,11 +123,13 @@ class MiniPlayer extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: p.border),
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [p.panelTop, p.panelBottom],
-        ),
+        gradient: blur
+            ? null
+            : LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [p.panelTop, p.panelBottom],
+              ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

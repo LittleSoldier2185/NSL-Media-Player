@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart' show Window, WindowEffect;
 import 'package:flutter/services.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:window_manager/legacy.dart';
@@ -423,6 +424,50 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     if (widget.miniChild != null) _finishMini('close');
   }
 
+  bool _blurActive = false;
+  static bool _acrylicReady = false;
+
+  /// Mini player window look: a blurred (acrylic) backdrop tinted by the
+  /// opacity slider, or plain see-through. If the blur is not available the
+  /// window falls back to plain see-through, so the mini player still works.
+  Future<void> _applyMiniLook() async {
+    if (!_mini) return;
+    if (s.miniBlur) {
+      try {
+        if (!_acrylicReady) {
+          await Window.initialize();
+          _acrylicReady = true;
+        }
+        final pal = context.pal;
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        await windowManager.setOpacity(1);
+        await Window.setEffect(
+          effect: WindowEffect.acrylic,
+          color: pal.bg.withValues(alpha: s.miniOpacity / 100),
+          dark: dark,
+        );
+        if (mounted && !_blurActive) setState(() => _blurActive = true);
+        return;
+      } on Object catch (e) {
+        debugPrint('Blurred background is not available: $e');
+      }
+    }
+    await _clearMiniLook(restoreOpacity: false);
+    await windowManager.setOpacity(s.miniOpacity / 100);
+  }
+
+  Future<void> _clearMiniLook({bool restoreOpacity = true}) async {
+    if (_blurActive) {
+      try {
+        await Window.setEffect(effect: WindowEffect.disabled);
+      } on Object catch (e) {
+        debugPrint('Could not remove the blurred background: $e');
+      }
+      if (mounted) setState(() => _blurActive = false);
+    }
+    if (restoreOpacity) await windowManager.setOpacity(1);
+  }
+
   Future<void> _enterMini() async {
     if (_mini) return;
     if (_fullscreen) await _toggleFullscreen(false);
@@ -440,7 +485,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     _miniOriginOnce = pos ?? widget.miniChild?.origin ?? _fullBounds!.topLeft;
     await _applyMiniSize();
     await windowManager.setAlwaysOnTop(s.miniOnTop);
-    await windowManager.setOpacity(s.miniOpacity / 100);
+    await _applyMiniLook();
     c.setReducedLoad(true);
   }
 
@@ -458,7 +503,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     // Stop any in-flight mini resize from fighting the restore below.
     _miniResizePending = false;
     _miniApplied = null;
-    await windowManager.setOpacity(1);
+    await _clearMiniLook();
     await windowManager.setAlwaysOnTop(false);
     await windowManager.setResizable(true);
     await windowManager.setAspectRatio(0);
@@ -679,16 +724,18 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
               c.openPaths(paths);
             },
             child: Scaffold(
+              backgroundColor: _mini && _blurActive ? Colors.transparent : null,
               body: _mini
                   ? ListenableBuilder(
                       listenable: s,
                       builder: (context, _) => MiniPlayer(
                         controller: c,
+                        blur: _blurActive,
                         opacity: s.miniOpacity,
                         onTop: s.miniOnTop,
                         onOpacity: (v) {
                           s.miniOpacity = v;
-                          windowManager.setOpacity(v / 100);
+                          _applyMiniLook();
                           setState(() {});
                         },
                         onToggleOnTop: () {

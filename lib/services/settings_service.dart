@@ -41,6 +41,10 @@ class AppSettings extends ChangeNotifier {
   int get miniOpacity => _prefs.getInt('miniOpacity') ?? 72;
   set miniOpacity(int v) => _prefs.setInt('miniOpacity', v.clamp(20, 100));
 
+  /// Frosted-glass (acrylic) background for the mini player; the opacity
+  /// slider then sets how strong the tint is.
+  bool get miniBlur => _prefs.getBool('miniBlur') ?? false;
+
   bool get miniOnTop => _prefs.getBool('miniOnTop') ?? true;
   set miniOnTop(bool v) => _prefs.setBool('miniOnTop', v);
 

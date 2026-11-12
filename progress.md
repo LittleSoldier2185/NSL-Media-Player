@@ -1,7 +1,7 @@
 # NSL Media Player — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-5 done, next Phase 7 (Phase 6 พักไว้ รอผู้ใช้เรียก)
+Overall status: Phase 1-5 done, Phase 7 ทำเฉพาะ acrylic, next Phase 8 (Phase 6 พักไว้ รอผู้ใช้เรียก)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -55,7 +55,11 @@ Overall status: Phase 1-5 done, next Phase 7 (Phase 6 พักไว้ รอ�
 ### Phase 6: Upscale GLSL — [ ] พักไว้ (ON HOLD) ห้ามเริ่มจนกว่าผู้ใช้เรียก
 - [ ] ทดลอง shader กับ media_kit, Settings Off/Fast/Quality, แพ็ก .glsl, ปิดเมื่อ `reducedLoad`
 
-### Phase 7: ของเสริม/ขัดเกลา — [ ] not started
+### Phase 7: ของเสริม/ขัดเกลา — [~] ทำเฉพาะข้อที่ผู้ใช้เลือก (2026-11-12)
+- [x] พื้นหลังโปร่งแบบเบลอของ mini player ด้วย `flutter_acrylic ^1.1.4`: Settings > Mini player > Blurred background (ปิดเป็นค่าเริ่มต้น); เปิดแล้วใช้ `WindowEffect.acrylic` สี tint = สีพื้นหลังธีม alpha ตามสไลเดอร์ Opacity (หน้าต่างไม่ใช้ setOpacity ตอนเบลอ ตัวหนังสือจึงไม่จาง), การ์ดเสียงไม่วาดพื้นหลังเอง; ถ้าเบลอไม่ได้จะ fallback เป็นโปร่งแบบเดิมอัตโนมัติ
+  - วิดีโอ (PiP) เต็มหน้าต่างด้วยภาพ จึงไม่เห็นผลเบลอ
+  - analyze ไม่มี error/warning, test 132 ผ่าน, build release + เปิดแอปผ่าน แต่ **ยังไม่เคยเห็นผลเบลอจริง** (ต้องเปิด mini แล้วดูด้วยตา: เบลอขึ้นไหม, ขอบ/มุมโค้งถูกไหม, ลากหน้าต่างหน่วงไหม, สลับกลับหน้าต่างหลักแล้วเบลอหายไหม) → Phase 8
+- [ ] ข้ออื่น (click-through, audio-only ตอนหน้าต่างถูกบัง, ภาษา, ปรับแต่ง UI) — ผู้ใช้เลือกไม่ทำตอนนี้
 ### Phase 8: ทดสอบบนเครื่องจริง (ดูรายการ "ยังไม่ได้ยืนยัน") — [ ] not started
 
 ## Notes / Decisions / Blockers

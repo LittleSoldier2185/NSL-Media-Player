@@ -364,6 +364,15 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             _toggle(
               p,
+              'Blurred background',
+              'Frosted-glass look (Windows acrylic) behind the sound-only card. '
+                  'The opacity slider then sets how strong the tint is. A video '
+                  'fills the window, so it is not affected.',
+              s.miniBlur,
+              (v) => s.put('miniBlur', v),
+            ),
+            _toggle(
+              p,
               'Always on top',
               'Keep the mini player above other windows.',
               s.miniOnTop,
