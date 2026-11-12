@@ -15,6 +15,7 @@ import 'history_view.dart';
 import 'home_sections.dart';
 import 'library_thumb.dart';
 import 'kind_pages.dart';
+import 'photos_view.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';
 import 'sidebar.dart';

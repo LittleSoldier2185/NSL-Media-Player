@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
+import 'package:exif/exif.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,6 +19,7 @@ class LibraryItem {
     this.album = '',
     this.durationMs = 0,
     required this.modified,
+    this.taken,
   });
 
   final String path;
@@ -29,6 +31,12 @@ class LibraryItem {
   /// File modification time (ms since epoch); used for "Recently added" and
   /// to know when tags must be re-read.
   final int modified;
+
+  /// When a picture was taken (ms since epoch, from its EXIF data), or null.
+  final int? taken;
+
+  /// When it was taken, or else when the file was last changed.
+  int get when => taken ?? modified;
 
   bool get isVideo => videoExtensions.contains(extensionOf(path));
 
@@ -46,6 +54,7 @@ class LibraryItem {
     'b': album,
     'd': durationMs,
     'm': modified,
+    if (taken != null) 'k': taken,
   };
 
   static LibraryItem? fromJson(Object? j) {
@@ -59,6 +68,7 @@ class LibraryItem {
       album: j['b'] is String ? j['b'] as String : '',
       durationMs: j['d'] is int ? j['d'] as int : 0,
       modified: m,
+      taken: j['k'] is int ? j['k'] as int : null,
     );
   }
 }
@@ -153,7 +163,7 @@ class LibraryService extends ChangeNotifier {
     ];
     out.sort(
       k == MediaKind.image
-          ? (a, b) => b.modified.compareTo(a.modified)
+          ? (a, b) => b.when.compareTo(a.when)
           : (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
     );
     return out;
@@ -285,7 +295,9 @@ class LibraryService extends ChangeNotifier {
         final modified = (await f.lastModified()).millisecondsSinceEpoch;
         final old = known[f.path];
         result.add(
-          old != null && old.modified == modified ? old : _read(f, modified),
+          old != null && old.modified == modified
+              ? old
+              : await _readItem(f, modified),
         );
         scanned++;
         // Yield regularly so the UI stays responsive on big libraries.
@@ -301,6 +313,48 @@ class LibraryService extends ChangeNotifier {
       scanning = false;
       notifyListeners();
     }
+  }
+
+  Future<LibraryItem> _readItem(File f, int modified) async {
+    if (kindOf(f.path) != MediaKind.image) return _read(f, modified);
+    return LibraryItem(
+      path: f.path,
+      title: _stripExt(fileNameOf(f.path)),
+      modified: modified,
+      taken: (await readTakenDate(f))?.millisecondsSinceEpoch,
+    );
+  }
+
+  /// When the picture was taken, from the EXIF data at the start of the file.
+  /// Null for pictures without it (PNG, screenshots) or unreadable files.
+  static Future<DateTime?> readTakenDate(File f) async {
+    try {
+      final bytes = <int>[];
+      // EXIF sits at the start of the file; no need to read the whole picture.
+      await for (final chunk in f.openRead(0, 128 * 1024)) {
+        bytes.addAll(chunk);
+      }
+      final tags = await readExifFromBytes(bytes);
+      final raw =
+          tags['EXIF DateTimeOriginal'] ??
+          tags['EXIF DateTimeDigitized'] ??
+          tags['Image DateTime'];
+      return raw == null ? null : parseExifDate(raw.printable);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Reads `2026:11:08 16:42:11` (local time, as cameras write it).
+  static DateTime? parseExifDate(String s) {
+    final m = RegExp(r'^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})')
+        .firstMatch(s.trim());
+    if (m == null) return null;
+    final v = [for (var i = 1; i <= 6; i++) int.parse(m.group(i)!)];
+    if (v[0] < 1900 || v[1] < 1 || v[1] > 12 || v[2] < 1 || v[2] > 31) {
+      return null;
+    }
+    return DateTime(v[0], v[1], v[2], v[3], v[4], v[5]);
   }
 
   LibraryItem _read(File f, int modified) {

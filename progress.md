@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, next Phase 11 (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a done (11b-d ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -72,7 +72,13 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] sidebar เพิ่ม Photos และ Books (หน้า placeholder `kind_pages.dart` แสดงจำนวนที่เจอ รอ Phase 11-12); ยังไม่ได้ปรับ Home (แท็บ Photos/Books) — ไปพร้อมหน้าจริง
 - [x] test เพิ่ม 5 ข้อ (`test/media_kinds_test.dart`) รวม 139 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน; ยังไม่ได้ลองกดหน้า Photos/Books จริง
 - หมายเหตุ: ไฟล์ HEIC/HEIF ยังไม่ถูกนับเป็นรูป (เพิ่มใน Phase 11 พร้อมตัวแปลง)
-### Phase 11: รูปภาพ (Photos, อัลบั้ม, ตัวดูรูป, HEIC, กันรูปซ้ำ) — [ ] not started
+### Phase 11: รูปภาพ (Photos, อัลบั้ม, ตัวดูรูป, HEIC, กันรูปซ้ำ) — [~] in progress (แบ่งเป็น 11a-11d)
+- [x] **11a (2026-11-12)** หน้า Photos แบบไทม์ไลน์ + ตัวดูรูป: `lib/ui/photos_view.dart` (จัดกลุ่มตามวันที่ถ่าย Today/Yesterday/วันที่, ปรับขนาดช่อง, ค้นหาชื่อ, ปุ่ม Add folder), `lib/ui/photo_viewer.dart` (ซูมด้วยล้อ/ลาก, ดับเบิลคลิกซูม, ลูกศร/Home/End/Esc, หมุนดู, แผงรายละเอียด I, แถบรูปย่อ, Show in folder, โหลดรูปข้างเคียงล่วงหน้า); อ่านวันที่ถ่ายจาก EXIF ตอนสแกน (`exif ^3.3.0`, อ่านแค่ 128 KB แรก, เก็บในดัชนีคีย์ `k`) ไม่มี EXIF ใช้วันที่แก้ไขไฟล์; รูปย่อใช้ `Image.file(cacheWidth)` (ยังไม่มีแคช PNG บนดิสก์)
+  - test 13 ข้อ (`test/photos_test.dart`: วันที่ EXIF จากไฟล์ JPEG ที่สร้างขึ้น, จัดกลุ่ม, หน้า Photos, ตัวดู) รวม 152 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
+  - ยังไม่ได้ลองกับรูปจริงของผู้ใช้/จำนวนมาก (ความเร็วเลื่อน, การกินแรม) และไม่ได้ลองกดตัวดูจริง → Phase 8
+- [ ] 11b อัลบั้ม 2 แบบ (จากโฟลเดอร์ + ตั้งชื่อเอง) + สไลด์โชว์
+- [ ] 11c แถบ Now playing ส่วนกลาง (เล่นเสียงต่อเป็น audio only ตอนดูรูป/อ่านหนังสือ)
+- [ ] 11d HEIC (แปลงเป็น JPEG) + กันรูปซ้ำด้วย hash + แคชรูปย่อบนดิสก์ ถ้าจำเป็น
 ### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started
 ### Phase 12.5: Private mode (โหมดส่วนตัว ขอรหัสเข้า) — [ ] ร่างแผนแล้ว รอผู้ใช้ยืนยัน
 - [ ] ดูรายละเอียดใน Plan.md (Milestone 6); ล็อกระดับแอปเท่านั้น ไม่เข้ารหัสไฟล์; ซ่อนจากทุกหน้า/ประวัติ/แคช/SMTC ตอนล็อก; ผลต่อ Hub ระบุไว้ใน Milestone 7

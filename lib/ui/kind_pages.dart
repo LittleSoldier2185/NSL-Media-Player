@@ -3,29 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/library_service.dart';
 import 'theme.dart';
 
-/// Photos page. For now it shows what the library found; the grid, albums and
-/// viewer come next.
-class PhotosView extends StatelessWidget {
-  const PhotosView({
-    super.key,
-    required this.library,
-    required this.onOpenLibrary,
-  });
-
-  final LibraryService library;
-  final VoidCallback onOpenLibrary;
-
-  @override
-  Widget build(BuildContext context) => _KindPage(
-    library: library,
-    onOpenLibrary: onOpenLibrary,
-    title: 'Photos',
-    icon: Icons.photo_library_outlined,
-    count: () => library.imageCount,
-    noun: 'photo',
-  );
-}
-
 /// Books page (PDF). Same stage as [PhotosView]: the shelf and the reader
 /// come next.
 class BooksView extends StatelessWidget {
