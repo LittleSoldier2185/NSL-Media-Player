@@ -254,6 +254,23 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             _toggle(
               p,
+              'Sound only while browsing',
+              'A video drops to sound only while its picture is not on screen '
+                  '(Library, Photos, Books ...) and the picture comes back when '
+                  'you return to the player.',
+              s.hubAudioOnly,
+              (v) => s.put('hubAudioOnly', v),
+            ),
+            _toggle(
+              p,
+              'Keep browsing when a file opens',
+              'Opening or dropping a file while you look at Photos or Books '
+                  'plays it in the background instead of switching to the player.',
+              s.keepBrowsing,
+              (v) => s.put('keepBrowsing', v),
+            ),
+            _toggle(
+              p,
               'Windows media controls',
               'Media keys and the Windows volume panel show the current title and control playback.',
               s.smtcEnabled,

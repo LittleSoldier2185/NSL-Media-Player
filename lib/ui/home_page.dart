@@ -131,6 +131,8 @@ class _HomePageState extends State<HomePage> {
             NavDest.photos => PhotosView(
               library: widget.library,
               albums: widget.photoAlbums,
+              controller: widget.controller,
+              onOpenPlayer: widget.onOpenPlayer,
               onOpenLibrary: widget.onOpenLibrary,
             ),
             NavDest.books => BooksView(

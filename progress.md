@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-b done (11c-d ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-c done (11d ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -82,7 +82,12 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
   - ตัวดูรูป: สไลด์โชว์ (Space, เลือก 3/5/10/30 วินาที, วนรอบเมื่อถึงรูปสุดท้าย, กดเปลี่ยนรูปเองแล้วเริ่มนับเวลาใหม่), เต็มจอ (F/F11, Esc ออก), ปุ่ม Slideshow ที่หัวหน้าไทม์ไลน์/อัลบั้ม/โฟลเดอร์
   - แก้ 2 บั๊กที่เทสต์เจอระหว่างทำ: (1) หัวหน้า Photos ล้นจอเมื่อหน้าต่างแคบ → ให้ปุ่มตัดบรรทัดเอง (2) กล่องตั้งชื่ออัลบั้มทิ้ง TextEditingController เร็วเกินไป (error ตอนปิดกล่อง) → ย้ายไปอยู่ใน StatefulWidget ของกล่องเอง
   - test เพิ่มรวม 161 ผ่าน (`test/photo_albums_test.dart` 9 ข้อ), analyze ไม่มี error/warning, build release + เปิดแอปผ่าน; ยังไม่ได้ลองกดจริง (โดยเฉพาะ fullscreen ซึ่งเทสต์ไม่ได้ทดสอบเพราะเรียก `window_manager`) → Phase 8
-- [ ] 11c แถบ Now playing ส่วนกลาง (เล่นเสียงต่อเป็น audio only ตอนดูรูป/อ่านหนังสือ)
+- [x] **11c (2026-11-13)** แถบ Now playing ส่วนกลาง — เล่นเพลง/คลิปต่อได้ตอนดูรูป/อ่านหนังสือ:
+  - `lib/ui/now_playing_dock.dart`: แถบล่างจอ (ปก/เฟรมวิดีโอ, ชื่อ, ก่อนหน้า/เล่น-หยุด/ถัดไป, แถบเวลา `SeekRow`, ความดัง, "Show picture" เมื่อเป็นวิดีโอแบบเสียงอย่างเดียว, เปิดตัวเล่น; จอแคบ <860px ซ่อนความดัง) แสดงทุกหน้ายกเว้นหน้า Player/เต็มจอ/mini และใต้ตัวดูรูป (`PhotoViewerPage(controller:)`)
+  - `lib/services/hub_audio.dart` (`HubAudioOnly`): วิดีโอที่กำลังเล่นจะลดเป็น sound only (`vid=no` เดิม) เมื่อออกจากหน้า Player และคืนภาพเมื่อกลับมา; ยกเลิกเฉพาะที่ตัวเองเปิด (ถ้าผู้ใช้เปิด sound only เองไว้ก่อน จะไม่ไปปิดให้); ตั้งปิดได้ที่ Settings > Playback > "Sound only while browsing" (เปิดเป็นค่าเริ่มต้น); ไม่ทำงานเมื่อ mini player แยกโปรเซสเล่นอยู่
+  - เปิดไฟล์ (Open file/ลากวาง) ตอนอยู่หน้า Photos/Books จะเล่นเป็นพื้นหลังแทนที่จะเด้งไปหน้า Player; ปิดได้ที่ Settings > Playback > "Keep browsing when a file opens" (เปิดเป็นค่าเริ่มต้น); เล่นจาก Library/Home/History ยังไปหน้า Player ตามเดิม
+  - test เพิ่ม 7 ข้อ (`test/hub_audio_test.dart`) รวม 168 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
+  - **ยังไม่ได้เห็นแถบนี้จริง**: เทสต์สร้าง `NslPlayerController` ไม่ได้ (ต้องมี libmpv) จึงไม่มี widget test ของแถบ และไม่ได้ลองกดจริง → Phase 8: เปิดเพลงแล้วไปหน้า Photos (แถบขึ้นไหม, ปุ่มทำงานไหม), เปิดวิดีโอแล้วออกไปหน้า Library (เสียงต่อไหม, กลับมาภาพคืนไหม), กด Show picture, เปิดตัวดูรูปตอนเพลงเล่น
 - [ ] 11d HEIC (แปลงเป็น JPEG) + กันรูปซ้ำด้วย hash + แคชรูปย่อบนดิสก์ ถ้าจำเป็น
 ### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started
 ### Phase 12.5: Private mode (โหมดส่วนตัว ขอรหัสเข้า) — [ ] ร่างแผนแล้ว รอผู้ใช้ยืนยัน

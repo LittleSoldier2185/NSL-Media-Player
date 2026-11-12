@@ -15,11 +15,13 @@ import '../services/mini_ipc.dart';
 import '../services/mini_session_tracker.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
+import '../services/hub_audio.dart';
 import '../services/library_service.dart';
 import '../services/playlist_service.dart';
 import 'home_page.dart';
 import 'mini_player.dart';
 import 'music_view.dart';
+import 'now_playing_dock.dart';
 import 'queue_panel.dart';
 import 'settings_page.dart';
 import 'shortcut_guard.dart';
@@ -66,7 +68,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   bool _showQueue = true;
   bool _settingsOpen = false;
 
-  void _openSettings() => setState(() => _settingsOpen = true);
+  void _openSettings() {
+    setState(() => _settingsOpen = true);
+    _syncHubAudio();
+  }
 
   /// Showing the Home / Dashboard instead of the player.
   late bool _home =
@@ -80,6 +85,41 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   void _showPlayer() {
     if (_miniOpen) return;
     setState(() => _home = false);
+    _syncHubAudio();
+  }
+
+  /// Photos or Books is showing (and the viewer may be open on top of it).
+  bool get _browsingPictures =>
+      _home &&
+      !_settingsOpen &&
+      (_section == NavDest.photos || _section == NavDest.books);
+
+  /// Opening a file from outside a page (Open file, drop): go to the player,
+  /// unless you are looking at pictures or reading and chose to keep browsing.
+  void _showPlayerUnlessBrowsing() {
+    if (_browsingPictures && s.keepBrowsing) return;
+    _showPlayer();
+  }
+
+  // ---- sound only while the picture is not on screen ----
+
+  final _hubAudio = HubAudioOnly();
+
+  /// Drops a playing video to sound only when the player page is not showing
+  /// (and back when it is). Runs after the frame, because the page state that
+  /// decides it is changed together with the call.
+  void _syncHubAudio() {
+    if (!mounted || widget.miniChild != null || _miniOpen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final action = _hubAudio.update(
+        away: _dest != NavDest.player,
+        enabled: s.hubAudioOnly,
+        hasVideo: c.current != null && c.isVideoFile,
+        audioOnly: c.audioOnly,
+      );
+      if (action != null) c.setAudioOnly(action);
+    });
   }
 
   // ---- sidebar / navigation ----
@@ -119,6 +159,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
           _section = d;
       }
     });
+    _syncHubAudio();
   }
 
   /// Menu button / Ctrl+B: hide the sidebar, or bring back what was there.
@@ -253,6 +294,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   void _onControllerChanged() {
     if (_mini) _applyMiniSize();
+    _syncHubAudio();
   }
 
   // ---- separate mini player process: main window side ----
@@ -626,7 +668,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   Future<void> _pickFile() async {
     final paths = await _pickFiles();
     if (paths.isEmpty) return;
-    _showPlayer();
+    _showPlayerUnlessBrowsing();
     await c.openPaths(paths);
   }
 
@@ -724,7 +766,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                   paths.add(p);
                 }
               }
-              if (paths.isNotEmpty) _showPlayer();
+              if (paths.isNotEmpty) _showPlayerUnlessBrowsing();
               c.openPaths(paths);
             },
             child: Scaffold(
@@ -895,6 +937,12 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                             ],
                           ),
                         ),
+                        if (!_fullscreen && _dest != NavDest.player)
+                          NowPlayingDock(
+                            controller: c,
+                            thumbnails: widget.library.thumbnails,
+                            onOpenPlayer: () => _navigate(NavDest.player),
+                          ),
                       ],
                     ),
             ),

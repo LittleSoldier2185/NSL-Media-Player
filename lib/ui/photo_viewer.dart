@@ -7,8 +7,11 @@ import 'package:flutter/services.dart';
 
 import 'package:window_manager/legacy.dart';
 
+import '../player_controller/player_controller.dart';
 import '../services/library_service.dart';
+import '../services/thumbnail_service.dart';
 import '../services/playlist_service.dart';
+import 'now_playing_dock.dart';
 import 'photo_common.dart';
 import 'theme.dart';
 import 'title_bar.dart';
@@ -22,6 +25,9 @@ class PhotoViewerPage extends StatefulWidget {
     this.index = 0,
     this.albums,
     this.slideshow = false,
+    this.controller,
+    this.thumbnails,
+    this.onOpenPlayer,
   });
 
   final List<LibraryItem> items;
@@ -32,6 +38,13 @@ class PhotoViewerPage extends StatefulWidget {
 
   /// Start playing as a slideshow right away.
   final bool slideshow;
+
+  /// The player: when something is playing, a bar under the picture shows it.
+  final NslPlayerController? controller;
+  final ThumbnailService? thumbnails;
+
+  /// "Open player" on that bar: close the viewer and show the player page.
+  final VoidCallback? onOpenPlayer;
 
   @override
   State<PhotoViewerPage> createState() => _PhotoViewerPageState();
@@ -284,6 +297,17 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                 ],
               ),
             ),
+            if (!_full &&
+                widget.controller != null &&
+                widget.thumbnails != null)
+              NowPlayingDock(
+                controller: widget.controller!,
+                thumbnails: widget.thumbnails!,
+                onOpenPlayer: () {
+                  Navigator.of(context).maybePop();
+                  widget.onOpenPlayer?.call();
+                },
+              ),
           ],
         ),
       ),

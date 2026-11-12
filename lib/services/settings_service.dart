@@ -82,6 +82,14 @@ class AppSettings extends ChangeNotifier {
   bool get resume => _prefs.getBool('resume') ?? true;
   bool get autoNext => _prefs.getBool('autoNext') ?? true;
 
+  /// Drop a video to sound only while its picture is not on screen (you are
+  /// on Library, Photos, Books ...), so it costs no CPU/GPU for nothing.
+  bool get hubAudioOnly => _prefs.getBool('hubAudioOnly') ?? true;
+
+  /// Opening a file while looking at Photos or Books plays it in the
+  /// background instead of switching to the player page.
+  bool get keepBrowsing => _prefs.getBool('keepBrowsing') ?? true;
+
   /// Show the title in Windows media controls and react to media keys.
   bool get smtcEnabled => _prefs.getBool('smtcEnabled') ?? true;
 

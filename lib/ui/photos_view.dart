@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../player_controller/player_controller.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/playlist_service.dart';
@@ -23,6 +24,8 @@ class PhotosView extends StatefulWidget {
     required this.library,
     required this.albums,
     required this.onOpenLibrary,
+    this.controller,
+    this.onOpenPlayer,
     this.now,
   });
 
@@ -31,6 +34,10 @@ class PhotosView extends StatefulWidget {
   /// Albums you made (named lists of pictures).
   final PlaylistService albums;
   final VoidCallback onOpenLibrary;
+
+  /// The player, to show what is playing under the viewer (none in tests).
+  final NslPlayerController? controller;
+  final VoidCallback? onOpenPlayer;
 
   /// "Today" (tests).
   final DateTime Function()? now;
@@ -122,6 +129,9 @@ class _PhotosViewState extends State<PhotosView> {
           index: index,
           albums: widget.albums,
           slideshow: slideshow,
+          controller: widget.controller,
+          thumbnails: widget.library.thumbnails,
+          onOpenPlayer: widget.onOpenPlayer,
         ),
       ),
     );
