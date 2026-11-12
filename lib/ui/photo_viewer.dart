@@ -1,21 +1,37 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:window_manager/legacy.dart';
+
 import '../services/library_service.dart';
-import 'photos_view.dart' show dayLabel;
+import '../services/playlist_service.dart';
+import 'photo_common.dart';
 import 'theme.dart';
 import 'title_bar.dart';
 
 /// Shows one picture at a time: zoom and pan with the wheel or by dragging,
 /// move with the arrow keys or the buttons, details on the right.
 class PhotoViewerPage extends StatefulWidget {
-  const PhotoViewerPage({super.key, required this.items, this.index = 0});
+  const PhotoViewerPage({
+    super.key,
+    required this.items,
+    this.index = 0,
+    this.albums,
+    this.slideshow = false,
+  });
 
   final List<LibraryItem> items;
   final int index;
+
+  /// Where "Add to album" puts the picture (the button is hidden without it).
+  final PlaylistService? albums;
+
+  /// Start playing as a slideshow right away.
+  final bool slideshow;
 
   @override
   State<PhotoViewerPage> createState() => _PhotoViewerPageState();
@@ -30,6 +46,12 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   int _turns = 0; // quarter turns, for looking only (the file is not changed)
   Size? _pixels; // size of the picture in pixels, once loaded
 
+  // Slideshow and fullscreen.
+  Timer? _timer;
+  bool _playing = false;
+  int _every = 5; // seconds per picture
+  bool _full = false;
+
   static const _stripTile = 84.0;
 
   LibraryItem get _item => widget.items[_i];
@@ -38,11 +60,16 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   void initState() {
     super.initState();
     _loadSize();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _centerStrip(false));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerStrip(false);
+      if (widget.slideshow) _startSlideshow();
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
+    if (_full) windowManager.setFullScreen(false);
     _zoom.dispose();
     _focus.dispose();
     _strip.dispose();
@@ -68,10 +95,46 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     stream.addListener(l);
   }
 
-  void _go(int to) {
+  // ---- slideshow / fullscreen ----
+
+  void _startSlideshow() {
+    _timer?.cancel();
+    _timer = Timer.periodic(Duration(seconds: _every), (_) => _next());
+    setState(() => _playing = true);
+  }
+
+  void _stopSlideshow() {
+    _timer?.cancel();
+    _timer = null;
+    if (_playing) setState(() => _playing = false);
+  }
+
+  void _toggleSlideshow() => _playing ? _stopSlideshow() : _startSlideshow();
+
+  void _setEvery(int seconds) {
+    _every = seconds;
+    if (_playing) {
+      _startSlideshow();
+    } else {
+      setState(() {});
+    }
+  }
+
+  /// The slideshow goes round: after the last picture comes the first.
+  void _next() => _go(_i >= widget.items.length - 1 ? 0 : _i + 1, wrap: true);
+
+  void _toggleFull() {
+    setState(() => _full = !_full);
+    windowManager.setFullScreen(_full);
+  }
+
+  void _go(int to, {bool wrap = false}) {
     if (widget.items.isEmpty) return;
     final n = to.clamp(0, widget.items.length - 1);
     if (n == _i) return;
+    // A click or key of your own: the next automatic step is a full interval
+    // away, not a moment after.
+    if (_playing && !wrap) _startSlideshow();
     setState(() {
       _i = n;
       _zoom.value = Matrix4.identity();
@@ -156,7 +219,15 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     } else if (k == LogicalKeyboardKey.end) {
       _go(widget.items.length - 1);
     } else if (k == LogicalKeyboardKey.escape) {
-      Navigator.of(context).maybePop();
+      if (_full) {
+        _toggleFull();
+      } else {
+        Navigator.of(context).maybePop();
+      }
+    } else if (k == LogicalKeyboardKey.space) {
+      _toggleSlideshow();
+    } else if (k == LogicalKeyboardKey.keyF || k == LogicalKeyboardKey.f11) {
+      _toggleFull();
     } else if (k == LogicalKeyboardKey.keyI) {
       setState(() => _info = !_info);
     } else if (k == LogicalKeyboardKey.keyR) {
@@ -192,10 +263,11 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
         backgroundColor: const Color(0xFF050607),
         body: Column(
           children: [
-            NslTitleBar(
-              title: '${item.title} · ${_i + 1} of ${widget.items.length}',
-              onLogo: () => Navigator.of(context).maybePop(),
-            ),
+            if (!_full)
+              NslTitleBar(
+                title: '${item.title} · ${_i + 1} of ${widget.items.length}',
+                onLogo: () => Navigator.of(context).maybePop(),
+              ),
             Expanded(
               child: Row(
                 children: [
@@ -203,12 +275,12 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                     child: Column(
                       children: [
                         Expanded(child: _stage()),
-                        _toolbar(p),
-                        _filmstrip(p),
+                        if (!_full) _toolbar(p),
+                        if (!_full) _filmstrip(p),
                       ],
                     ),
                   ),
-                  if (_info) _details(p, item, when),
+                  if (_info && !_full) _details(p, item, when),
                 ],
               ),
             ),
@@ -336,6 +408,32 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          b(
+            _playing ? Icons.pause_circle_outline : Icons.slideshow,
+            _playing ? 'Pause slideshow (Space)' : 'Slideshow (Space)',
+            _toggleSlideshow,
+            on: _playing,
+          ),
+          PopupMenuButton<int>(
+            tooltip: 'Time per picture',
+            onSelected: _setEvery,
+            itemBuilder: (_) => [
+              for (final s in const [3, 5, 10, 30])
+                CheckedPopupMenuItem(
+                  value: s,
+                  checked: s == _every,
+                  child: Text('$s seconds'),
+                ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                '${_every}s',
+                style: const TextStyle(color: Color(0xFFC9CCD6)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           b(Icons.zoom_out, 'Zoom out (-)', () => _zoomBy(0.8)),
           b(Icons.zoom_in, 'Zoom in (+)', () => _zoomBy(1.25)),
           b(Icons.fit_screen, 'Fit to window (0)', _fit),
@@ -343,6 +441,19 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
           b(Icons.info_outline, 'Details (I)', () {
             setState(() => _info = !_info);
           }, on: _info),
+          if (widget.albums != null)
+            AddToAlbumButton(
+              albums: widget.albums!,
+              paths: () => [_item.path],
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(
+                  Icons.photo_album_outlined,
+                  color: Color(0xFFC9CCD6),
+                ),
+              ),
+            ),
+          b(Icons.fullscreen, 'Fullscreen (F)', _toggleFull),
           b(Icons.folder_open, 'Show in folder', _showInFolder),
         ],
       ),

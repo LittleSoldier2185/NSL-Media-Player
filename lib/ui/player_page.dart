@@ -36,6 +36,7 @@ class PlayerPage extends StatefulWidget {
     required this.history,
     required this.library,
     required this.playlists,
+    required this.photoAlbums,
     required this.initialArgs,
     this.miniHost,
     this.miniChild,
@@ -46,6 +47,7 @@ class PlayerPage extends StatefulWidget {
   final HistoryService history;
   final LibraryService library;
   final PlaylistService playlists;
+  final PlaylistService photoAlbums;
   final List<String> initialArgs;
 
   /// Main window: starts the separate mini player process.
@@ -800,6 +802,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                         history: widget.history,
                                         library: widget.library,
                                         playlists: widget.playlists,
+                                        photoAlbums: widget.photoAlbums,
                                         onOpenFile: _pickFile,
                                         onOpenFolder: _openFolderFromHome,
                                         onMini: _openMini,

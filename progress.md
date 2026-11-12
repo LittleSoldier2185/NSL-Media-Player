@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a done (11b-d ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-b done (11c-d ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -76,7 +76,12 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] **11a (2026-11-12)** หน้า Photos แบบไทม์ไลน์ + ตัวดูรูป: `lib/ui/photos_view.dart` (จัดกลุ่มตามวันที่ถ่าย Today/Yesterday/วันที่, ปรับขนาดช่อง, ค้นหาชื่อ, ปุ่ม Add folder), `lib/ui/photo_viewer.dart` (ซูมด้วยล้อ/ลาก, ดับเบิลคลิกซูม, ลูกศร/Home/End/Esc, หมุนดู, แผงรายละเอียด I, แถบรูปย่อ, Show in folder, โหลดรูปข้างเคียงล่วงหน้า); อ่านวันที่ถ่ายจาก EXIF ตอนสแกน (`exif ^3.3.0`, อ่านแค่ 128 KB แรก, เก็บในดัชนีคีย์ `k`) ไม่มี EXIF ใช้วันที่แก้ไขไฟล์; รูปย่อใช้ `Image.file(cacheWidth)` (ยังไม่มีแคช PNG บนดิสก์)
   - test 13 ข้อ (`test/photos_test.dart`: วันที่ EXIF จากไฟล์ JPEG ที่สร้างขึ้น, จัดกลุ่ม, หน้า Photos, ตัวดู) รวม 152 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
   - ยังไม่ได้ลองกับรูปจริงของผู้ใช้/จำนวนมาก (ความเร็วเลื่อน, การกินแรม) และไม่ได้ลองกดตัวดูจริง → Phase 8
-- [ ] 11b อัลบั้ม 2 แบบ (จากโฟลเดอร์ + ตั้งชื่อเอง) + สไลด์โชว์
+- [x] **11b (2026-11-13)** อัลบั้ม + สไลด์โชว์:
+  - หน้า Photos มีแท็บ Timeline / Albums / Folders: **Folders** = ทุกโฟลเดอร์ที่มีรูปเป็นอัลบั้มอัตโนมัติ (`folderAlbums`, ปกเป็นคอลลาจ 3 รูป); **Albums** = อัลบั้มที่ตั้งชื่อเอง (สร้าง/เปลี่ยนชื่อ/ลบ, ไฟล์จริงไม่ถูกลบ) เก็บที่ `%APPDATA%\NSL Media Player\photo_albums.json` โดยใช้ `PlaylistService` ตัวเดิมที่ปรับให้รับชื่อไฟล์/ชื่อเริ่มต้นได้ (ไม่เขียนซ้ำ)
+  - โหมด Select (เลือกหลายรูปทั้งในไทม์ไลน์และในอัลบั้ม) → Add to album (เมนูเลือกอัลบั้ม/New album…) และ Remove from album; ตัวดูรูปมีปุ่ม Add to album ด้วย
+  - ตัวดูรูป: สไลด์โชว์ (Space, เลือก 3/5/10/30 วินาที, วนรอบเมื่อถึงรูปสุดท้าย, กดเปลี่ยนรูปเองแล้วเริ่มนับเวลาใหม่), เต็มจอ (F/F11, Esc ออก), ปุ่ม Slideshow ที่หัวหน้าไทม์ไลน์/อัลบั้ม/โฟลเดอร์
+  - แก้ 2 บั๊กที่เทสต์เจอระหว่างทำ: (1) หัวหน้า Photos ล้นจอเมื่อหน้าต่างแคบ → ให้ปุ่มตัดบรรทัดเอง (2) กล่องตั้งชื่ออัลบั้มทิ้ง TextEditingController เร็วเกินไป (error ตอนปิดกล่อง) → ย้ายไปอยู่ใน StatefulWidget ของกล่องเอง
+  - test เพิ่มรวม 161 ผ่าน (`test/photo_albums_test.dart` 9 ข้อ), analyze ไม่มี error/warning, build release + เปิดแอปผ่าน; ยังไม่ได้ลองกดจริง (โดยเฉพาะ fullscreen ซึ่งเทสต์ไม่ได้ทดสอบเพราะเรียก `window_manager`) → Phase 8
 - [ ] 11c แถบ Now playing ส่วนกลาง (เล่นเสียงต่อเป็น audio only ตอนดูรูป/อ่านหนังสือ)
 - [ ] 11d HEIC (แปลงเป็น JPEG) + กันรูปซ้ำด้วย hash + แคชรูปย่อบนดิสก์ ถ้าจำเป็น
 ### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started

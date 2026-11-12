@@ -45,11 +45,19 @@ class Playlist {
 
 /// Saved playlists, stored in `%APPDATA%\NSL Media Player\playlists.json`.
 class PlaylistService extends ChangeNotifier {
-  /// [file] overrides the storage location (used by tests).
-  PlaylistService({File? file}) : _fileOverride = file {
+  /// [file] overrides the storage location (used by tests). The same class
+  /// keeps photo albums: they are named lists of files too, just stored in
+  /// their own file ([fileName]) and named "New album" by default.
+  PlaylistService({
+    File? file,
+    this.fileName = 'playlists.json',
+    this.defaultName = 'New playlist',
+  }) : _fileOverride = file {
     _load();
   }
 
+  final String fileName;
+  final String defaultName;
   final File? _fileOverride;
   final List<Playlist> _lists = [];
   int _seq = 0;
@@ -68,9 +76,7 @@ class PlaylistService extends ChangeNotifier {
   File? get _file {
     if (_fileOverride != null) return _fileOverride;
     final base = Platform.environment['APPDATA'];
-    return base == null
-        ? null
-        : File('$base\\NSL Media Player\\playlists.json');
+    return base == null ? null : File('$base\\NSL Media Player\\$fileName');
   }
 
   void _load() {
@@ -112,7 +118,7 @@ class PlaylistService extends ChangeNotifier {
   /// [wanted] if free, otherwise "wanted (2)", "wanted (3)", ...
   /// [except] is a playlist that may keep its own name (for renaming).
   String uniqueName(String wanted, {String? except}) {
-    final base = wanted.trim().isEmpty ? 'New playlist' : wanted.trim();
+    final base = wanted.trim().isEmpty ? defaultName : wanted.trim();
     bool taken(String n) => _lists.any(
       (p) => p.id != except && p.name.toLowerCase() == n.toLowerCase(),
     );

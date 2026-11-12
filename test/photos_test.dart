@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nsl_media_player/services/library_service.dart';
+import 'package:nsl_media_player/services/playlist_service.dart';
 import 'package:nsl_media_player/ui/photos_view.dart';
 import 'package:nsl_media_player/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,7 +110,12 @@ void main() {
         body: SizedBox(
           width: 1000,
           height: 700,
-          child: PhotosView(library: lib, onOpenLibrary: () {}, now: () => now),
+          child: PhotosView(
+            library: lib,
+            albums: PlaylistService(file: File('${tmp.path}/albums.json')),
+            onOpenLibrary: () {},
+            now: () => now,
+          ),
         ),
       ),
     );

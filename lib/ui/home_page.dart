@@ -30,6 +30,7 @@ class HomePage extends StatefulWidget {
     required this.history,
     required this.library,
     required this.playlists,
+    required this.photoAlbums,
     required this.onOpenFile,
     required this.onOpenFolder,
     required this.onMini,
@@ -49,6 +50,9 @@ class HomePage extends StatefulWidget {
   final HistoryService history;
   final LibraryService library;
   final PlaylistService playlists;
+
+  /// Named photo albums (same kind of list as a playlist).
+  final PlaylistService photoAlbums;
   final VoidCallback onOpenFile;
   final VoidCallback onOpenFolder;
   final VoidCallback onMini;
@@ -126,6 +130,7 @@ class _HomePageState extends State<HomePage> {
             ),
             NavDest.photos => PhotosView(
               library: widget.library,
+              albums: widget.photoAlbums,
               onOpenLibrary: widget.onOpenLibrary,
             ),
             NavDest.books => BooksView(

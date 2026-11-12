@@ -69,6 +69,10 @@ Future<void> main(List<String> args) async {
   // Only the main window rescans: two processes must not write the index.
   final library = LibraryService(settings.prefs, autoRescan: miniChild == null);
   final playlists = PlaylistService();
+  final photoAlbums = PlaylistService(
+    fileName: 'photo_albums.json',
+    defaultName: 'New album',
+  );
   final miniHost = miniChild == null
       ? MiniHost(AppMiniPort(controller, history, settings))
       : null;
@@ -86,6 +90,7 @@ Future<void> main(List<String> args) async {
       history: history,
       library: library,
       playlists: playlists,
+      photoAlbums: photoAlbums,
       miniHost: miniHost,
       miniChild: miniChild,
       initialArgs: args,
@@ -132,6 +137,7 @@ class NslApp extends StatelessWidget {
     required this.history,
     required this.library,
     required this.playlists,
+    required this.photoAlbums,
     required this.initialArgs,
     this.miniHost,
     this.miniChild,
@@ -142,6 +148,7 @@ class NslApp extends StatelessWidget {
   final HistoryService history;
   final LibraryService library;
   final PlaylistService playlists;
+  final PlaylistService photoAlbums;
   final MiniHost? miniHost;
   final MiniChild? miniChild;
   final List<String> initialArgs;
@@ -162,6 +169,7 @@ class NslApp extends StatelessWidget {
           history: history,
           library: library,
           playlists: playlists,
+          photoAlbums: photoAlbums,
           miniHost: miniHost,
           miniChild: miniChild,
           initialArgs: initialArgs,
