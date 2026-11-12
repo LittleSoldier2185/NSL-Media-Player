@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-5 done, Phase 7 ทำเฉพาะ acrylic, next Phase 8 (Phase 6 พักไว้ รอผู้ใช้เรียก)
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 in progress (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -62,7 +62,38 @@ Overall status: Phase 1-5 done, Phase 7 ทำเฉพาะ acrylic, next Phas
 - [ ] ข้ออื่น (click-through, audio-only ตอนหน้าต่างถูกบัง, ภาษา, ปรับแต่ง UI) — ผู้ใช้เลือกไม่ทำตอนนี้
 ### Phase 8: ทดสอบบนเครื่องจริง (ดูรายการ "ยังไม่ได้ยืนยัน") — [ ] not started
 
+### Milestone 6: Photos & Books บน PC (เพิ่ม 2026-11-12 — ผู้ใช้เลือก: PDF ก่อน EPUB ทีหลัง, ทำบน PC ก่อนต่อ Hub)
+### Phase 9: ออกแบบ UI ส่วนใหม่ (artifact) — [x] done (2026-11-12)
+- [x] ออกแบบหน้า Photos / ตัวดูรูป / ชั้นหนังสือ / ตัวอ่าน PDF / Home-sidebar 4 ชนิด + แถบ Now playing เป็น artifact "NSL Resonance — Photos & Books Design" (https://claude.ai/artifact/6TQysy21QuvvhzhvgaGuhM); ผู้ใช้สั่งเริ่มลงมือส่วนสื่อใหม่ก่อน ส่วนการเชื่อมต่อมือถือ (Milestone 7) ไว้ทีหลัง
+- ไม่ได้ออกแบบ: หน้าตั้งค่าโฟลเดอร์รูป/PDF, สไลด์โชว์เต็มจอ, หน้าแก้ไขอัลบั้ม
+### Phase 10: ขยายโมเดล Library เป็น 4 ชนิด — [ ] not started
+### Phase 11: รูปภาพ (Photos, อัลบั้ม, ตัวดูรูป, HEIC, กันรูปซ้ำ) — [ ] not started
+### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started
+### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก
+
+### Milestone 7: Android + Hub (เพิ่ม 2026-11-12 — รอผู้ใช้ยืนยันลำดับก่อนเริ่ม; เลขเฟสเลื่อนหลังเพิ่ม Milestone 6)
+### Phase 14: Hub server บน PC — [ ] not started
+- [ ] โปรโตคอล REST `/v1` + WebSocket, **TLS ใบรับรองที่ PC สร้างเอง + ลายนิ้วมือใน QR**, จับคู่ด้วย QR ใช้ครั้งเดียว + token (แฮชที่ PC), เพิกถอนเครื่อง, Settings > Remote, unit test
+- [ ] จับคู่ด้วยรหัส 8 ตัวอักษรที่ PC สร้าง (+ QR) พร้อมขั้นอนุมัติบน PC, จำกัดครั้งที่ผิด, ผูกกับใบรับรอง
+- [ ] mDNS ประกาศบริการ, **เปิดพร้อม Windows + ถาดระบบ** (Hub ทำงานโดยไม่ต้องเปิดหน้าต่าง)
+- [ ] โมเดลข้อมูลรองรับ 4 ชนิดสื่อ (เสียง/วิดีโอ/รูป/PDF) ตั้งแต่เริ่ม
+### Phase 15: โครง Android + เชื่อมต่อ Hub — [ ] not started
+- [ ] `flutter create --platforms=android .`, build APK, UI มือถือ, สแกน QR + mDNS
+### Phase 16: A รีโมตครบ — [ ] not started
+### Phase 17: B สตรีมจาก PC + เล่นต่อตอนปิดจอ — [ ] not started
+### Phase 18: E1 ดาวน์โหลดออฟไลน์แบบต้นฉบับ — [ ] not started
+### Phase 19: E2 เลือกคุณภาพ (แปลงที่ PC ด้วย ffmpeg) — [ ] not started
+- [ ] ต้องตัดสินใจเรื่อง ffmpeg (แนบมากับแอป/ให้ชี้ตำแหน่ง, ขนาดตัวติดตั้ง, ไลเซนส์) ก่อนเริ่ม
+### Phase 20: เล่นไฟล์ในเครื่องมือถือเอง — [ ] not started
+### Phase 21: D อัปโหลดมือถือ → PC — [ ] not started
+- [ ] รับไฟล์แบบสตรีม/ต่อจากที่ค้าง, โฟลเดอร์รับอัปโหลด (ใน Library), Wi-Fi อย่างเดียว, ความคืบหน้า, ลบต้นฉบับหลัง PC ยืนยัน, ความปลอดภัย (ล้างชื่อไฟล์, ไม่เขียนทับ, เช็คพื้นที่/ขนาด)
+### Phase 22: C ซิงก์ resume/ประวัติ/playlist — [ ] not started
+### Phase 23: ใช้นอกบ้านผ่าน VPN + ความปลอดภัย — [ ] not started
+
 ## Notes / Decisions / Blockers
+- 2026-11-12: วางแผนการเชื่อมต่อมือถือ↔PC (เขียนใน Plan.md Milestone 7): ผู้ใช้ตัดสินใจ (1) TLS + ใบรับรองที่ PC สร้างเอง (2) PC เปิดพร้อม Windows + ถาดระบบ (3) ซิงก์ให้ PC เป็นแหล่งข้อมูลหลัก — ผมเสนอข้อกันของหาย (PC ชนะจุดที่ชนกัน แต่ของที่มือถือเพิ่มถูกรวม + แจ้งเมื่อมีอะไรถูกทับ) รอผู้ใช้ยืนยัน; ความเสี่ยงที่ต้องทดสอบตอน Phase 14-15: mpv บน Android สตรีมผ่านใบรับรอง self-signed ได้ไหม
+- 2026-11-12: ผู้ใช้เพิ่มความต้องการ (ยังเป็นแผน ไม่มีโค้ด): (1) ขยาย Hub เป็นสื่อ 4 ชนิด + อัลบั้มรูป + ebook PDF (Milestone 6 บน PC ก่อน; EPUB ไว้ทีหลัง) พร้อมออกแบบ UI เป็น artifact; (2) ตอนดูรูป/อ่านหนังสือต้องเปิดเพลง/คลิปเล่นเป็น audio only ต่อได้ (แถบ Now playing ส่วนกลาง, ไม่เด้งไปหน้า Player) — ยังไม่ได้เขียนลง Plan.md รอผู้ใช้ดูแบบ; (3) มือถือดาวน์โหลดสื่อจาก PC ไว้ออฟไลน์ + เลือกคุณภาพ (ฟีเจอร์ E, Phase 18-19; เลขเฟสของ Milestone 7 เลื่อนเป็น 14-23)
+- 2026-11-12: เพิ่ม Milestone 7 (Android + Hub) ตามที่ผู้ใช้ต้องการ: ใช้เองเครื่องเดียว แจก APK ธรรมดา; ขอบเขตรีโมต/สตรีม/ซิงก์ครบ A+B+C เหมือน Hub เก็บสื่อส่วนตัว + ฟีเจอร์ D อัปโหลดสื่อจากมือถือไปเก็บที่ PC (ผู้ใช้เพิ่มทีหลัง; Phase 21, ต้องหลัง Phase 20); Android เท่านั้น (iOS ไม่ทำ); Upscale ยังพักไว้ (ไม่ทำบนมือถือ); เครื่องมี Android SDK 36 พร้อม แต่ยังไม่มีโฟลเดอร์ `android/`. สมมติฐานที่ผมตั้ง (ผู้ใช้ยังไม่ได้ยืนยัน): ทำ Hub server บน PC ก่อน แล้วแอปมือถือเวอร์ชันแรกเป็นรีโมตล้วน, LAN ก่อน นอกบ้านใช้ Tailscale ทีหลัง
 - 2026-11-12: ผู้ใช้สั่งเปลี่ยนชื่อโปรแกรมเป็น **NSL Resonance** เปลี่ยนชื่อที่แสดง (ชื่อหน้าต่าง/แถบหัว, Settings, installer: AppName/โฟลเดอร์ติดตั้ง/ชื่อไฟล์ Setup/รายการใน Default apps, ProductName ของ exe) ส่วนชื่อภายในคงเดิมโดยตั้งใจ: แพ็กเกจและ exe `nsl_media_player`, โฟลเดอร์ข้อมูล `%APPDATA%/NSL Media Player` (ย้ายแล้วข้อมูล library/playlists/thumbnails จะหาย), ProgID `NslMediaPlayer.File`, คีย์ `Software/NSL/MediaPlayer`, AppId ของ installer (ให้ติดตั้งทับของเดิมได้); installer ลบรายการ RegisteredApplications ชื่อเก่าให้ตอนอัปเกรด
 - 2026-11-12: progress.md เดิมไม่มีโครงเฟส จัดรูปแบบใหม่ตาม nsl-dev โดยเก็บบันทึกเดิมไว้ด้านล่าง; Plan.md ติ๊กไปไกลกว่า progress.md เดิม (Thumbnail/Grid/Playlists/Home แท็บ/History/mini process ทำแล้ว) ถือตาม Plan.md และโค้ด
 - 2026-11-12: Plan.md (f4f0e27) เพิ่ม upscale GLSL / quick settings / sleep timer ผู้ใช้สั่งให้ upscale อยู่ในแผนแต่ **ไม่ทำจนกว่าผู้ใช้จะเรียก** (Phase 6 ON HOLD ข้ามไปเฟสถัดไปได้)
