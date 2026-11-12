@@ -54,7 +54,7 @@ class NslTitleBar extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       const Text(
-                        'NSL Media Player',
+                        'NSL Resonance',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,

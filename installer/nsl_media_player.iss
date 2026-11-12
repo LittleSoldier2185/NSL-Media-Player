@@ -1,9 +1,9 @@
-; NSL Media Player installer (Inno Setup 6)
+; NSL Resonance installer (Inno Setup 6)
 ; Build the app first:  flutter build windows --release
 ; Then compile:         iscc installer\nsl_media_player.iss
-; Output:               installer\Output\NSL-Media-Player-Setup.exe
+; Output:               installer\Output\NSL-Resonance-Setup.exe
 
-#define AppName "NSL Media Player"
+#define AppName "NSL Resonance"
 #define AppVersion "1.0.0"
 #define AppExe "nsl_media_player.exe"
 #define ProgId "NslMediaPlayer.File"
@@ -16,11 +16,11 @@ AppVersion={#AppVersion}
 AppPublisher=NSL
 ; Per-user install: no admin rights, registry goes to HKCU
 PrivilegesRequired=lowest
-DefaultDirName={localappdata}\Programs\NSL Media Player
+DefaultDirName={localappdata}\Programs\NSL Resonance
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=Output
-OutputBaseFilename=NSL-Media-Player-Setup
+OutputBaseFilename=NSL-Resonance-Setup
 SetupIconFile=..\windows\runner\resources\app_icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 Compression=lzma2
@@ -46,7 +46,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 
 [Registry]
 ; --- ProgID: how to open a file ---
-Root: HKCU; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueData: "NSL Media file"; Flags: uninsdeletekey; Tasks: assoc
+Root: HKCU; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueData: "NSL Resonance media file"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueData: "{app}\{#AppExe},0"; Tasks: assoc
 Root: HKCU; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: assoc
 
@@ -57,7 +57,9 @@ Root: HKCU; Subkey: "Software\Classes\Applications\{#AppExe}\shell\open\command"
 ; --- Capabilities + RegisteredApplications (shows up in Settings > Default apps) ---
 Root: HKCU; Subkey: "Software\NSL\MediaPlayer\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "{#AppName}"; Flags: uninsdeletekey; Tasks: assoc
 Root: HKCU; Subkey: "Software\NSL\MediaPlayer\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Play audio and video files"; Tasks: assoc
-Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "NSL Media Player"; ValueData: "Software\NSL\MediaPlayer\Capabilities"; Flags: uninsdeletevalue; Tasks: assoc
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "NSL Resonance"; ValueData: "Software\NSL\MediaPlayer\Capabilities"; Flags: uninsdeletevalue; Tasks: assoc
+; The entry written under the old name (before the rename) is removed on upgrade
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueName: "NSL Media Player"; ValueType: none; Flags: deletevalue; Tasks: assoc
 
 ; --- Audio extensions ---
 Root: HKCU; Subkey: "Software\NSL\MediaPlayer\Capabilities\FileAssociations"; ValueType: string; ValueName: ".mp3"; ValueData: "{#ProgId}"; Tasks: assoc

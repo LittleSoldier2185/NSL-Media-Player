@@ -45,7 +45,7 @@ Future<void> main(List<String> args) async {
           size: saved?.size ?? const Size(1280, 760),
           minimumSize: const Size(640, 420),
           center: saved == null,
-          title: 'NSL Media Player',
+          title: 'NSL Resonance',
           titleBarStyle: TitleBarStyle.hidden,
         );
   await windowManager.waitUntilReadyToShow(options, () async {
@@ -150,7 +150,7 @@ class NslApp extends StatelessWidget {
     return ListenableBuilder(
       listenable: settings,
       builder: (context, _) => MaterialApp(
-        title: 'NSL Media Player',
+        title: 'NSL Resonance',
         debugShowCheckedModeBanner: false,
         themeMode: settings.themeMode,
         theme: buildTheme(Brightness.light, settings.accent),

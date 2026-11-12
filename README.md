@@ -1,6 +1,6 @@
-# nsl_media_player
+# NSL Resonance
 
-A new Flutter project.
+Audio and video player for Windows (Flutter + libmpv). See `Plan.md` for the roadmap and `progress.md` for what is done. The package and executable keep the internal name `nsl_media_player`.
 
 ## Getting Started
 

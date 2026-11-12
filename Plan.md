@@ -1,4 +1,6 @@
-# NSL Media Player — Plan
+# NSL Resonance — Plan
+
+> ชื่อโปรแกรมเปลี่ยนจาก "NSL Media Player" เป็น **NSL Resonance** (2026-11-12) — เปลี่ยนเฉพาะชื่อที่ผู้ใช้เห็น ส่วนชื่อภายใน (แพ็กเกจ/exe `nsl_media_player`, โฟลเดอร์ข้อมูล `%APPDATA%/NSL Media Player`, ProgID, คีย์ Registry `Software/NSL/MediaPlayer`) คงเดิมเพื่อไม่ให้ข้อมูลและ default app ของผู้ใช้หาย
 
 ## 1. ภาพรวม
 โปรแกรมเล่นไฟล์เสียงและวิดีโอสำหรับ **Windows (PC)** สร้างด้วย **Flutter Desktop**

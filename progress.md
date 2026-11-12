@@ -1,4 +1,4 @@
-# NSL Media Player — Progress
+# NSL Resonance — Progress
 
 Last updated: 2026-11-12
 Overall status: Phase 1-5 done, Phase 7 ทำเฉพาะ acrylic, next Phase 8 (Phase 6 พักไว้ รอผู้ใช้เรียก)
@@ -63,6 +63,7 @@ Overall status: Phase 1-5 done, Phase 7 ทำเฉพาะ acrylic, next Phas
 ### Phase 8: ทดสอบบนเครื่องจริง (ดูรายการ "ยังไม่ได้ยืนยัน") — [ ] not started
 
 ## Notes / Decisions / Blockers
+- 2026-11-12: ผู้ใช้สั่งเปลี่ยนชื่อโปรแกรมเป็น **NSL Resonance** เปลี่ยนชื่อที่แสดง (ชื่อหน้าต่าง/แถบหัว, Settings, installer: AppName/โฟลเดอร์ติดตั้ง/ชื่อไฟล์ Setup/รายการใน Default apps, ProductName ของ exe) ส่วนชื่อภายในคงเดิมโดยตั้งใจ: แพ็กเกจและ exe `nsl_media_player`, โฟลเดอร์ข้อมูล `%APPDATA%/NSL Media Player` (ย้ายแล้วข้อมูล library/playlists/thumbnails จะหาย), ProgID `NslMediaPlayer.File`, คีย์ `Software/NSL/MediaPlayer`, AppId ของ installer (ให้ติดตั้งทับของเดิมได้); installer ลบรายการ RegisteredApplications ชื่อเก่าให้ตอนอัปเกรด
 - 2026-11-12: progress.md เดิมไม่มีโครงเฟส จัดรูปแบบใหม่ตาม nsl-dev โดยเก็บบันทึกเดิมไว้ด้านล่าง; Plan.md ติ๊กไปไกลกว่า progress.md เดิม (Thumbnail/Grid/Playlists/Home แท็บ/History/mini process ทำแล้ว) ถือตาม Plan.md และโค้ด
 - 2026-11-12: Plan.md (f4f0e27) เพิ่ม upscale GLSL / quick settings / sleep timer ผู้ใช้สั่งให้ upscale อยู่ในแผนแต่ **ไม่ทำจนกว่าผู้ใช้จะเรียก** (Phase 6 ON HOLD ข้ามไปเฟสถัดไปได้)
 

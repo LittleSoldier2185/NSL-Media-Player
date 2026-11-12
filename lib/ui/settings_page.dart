@@ -686,7 +686,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Windows only lets you choose the default app yourself. Pick NSL Media Player in Windows Default apps.',
+                        'Windows only lets you choose the default app yourself. Pick NSL Resonance in Windows Default apps.',
                         style: TextStyle(
                           fontSize: 13,
                           height: 1.5,
