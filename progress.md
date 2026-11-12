@@ -1,7 +1,7 @@
 # NSL Media Player — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1-3 done, next Phase 4 (Phase 6 พักไว้)
+Overall status: Phase 1-4 done, next Phase 5 (Phase 6 พักไว้)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -38,8 +38,11 @@ Overall status: Phase 1-3 done, next Phase 4 (Phase 6 พักไว้)
 - [x] unit test 5 ข้อ (`test/shortcut_bindings_test.dart`) รวม 125 ข้อผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
 - ข้อจำกัด: mini player (โปรเซสแยก) อ่านปุ่มตอนเปิดครั้งต่อไป; ยังไม่ได้ลองกดตั้งปุ่มบนหน้าจอจริง → Phase 8
 
-### Phase 4: กล่องลอยตั้งค่าด่วนในหน้าเล่น — [ ] not started
-- [ ] ปุ่มฟันเฟือง: คุณภาพ, ความเร็ว, ซับ/แทร็กเสียง (ยังไม่ใส่ตัวเลือก upscale)
+### Phase 4: กล่องลอยตั้งค่าด่วนในหน้าเล่น — [x] done (2026-11-12)
+- [x] `lib/ui/quick_settings.dart`: ปุ่ม tune (Quick settings) ในแถบควบคุม เปิดกล่องลอยปรับ ความเร็ว / คุณภาพวิดีโอ (เฉพาะตอนมีภาพ) / แทร็กเสียง (ถ้ามี >1) / ซับไตเติล + Load file…; ไอคอนสว่างเมื่อความเร็วไม่ใช่ 1× หรือเปิดซับ
+- [x] แทนปุ่มความเร็ว, ปุ่ม Quality และ `TracksButton` เดิมในแถบควบคุม (ลบ `TracksButton` แล้ว) — ไม่ใส่ตัวเลือก upscale ตามที่ตกลง (Phase 6 พักไว้)
+- [x] analyze ไม่มี error/warning, test 125 ผ่าน, build release + เปิดแอปผ่าน
+- ใช้ `PopupMenuButton` ที่มีรายการเดียวเป็นแผงของเราเอง (ปิดเมื่อคลิกนอกกล่อง) ยังไม่ได้ลองกดจริง → Phase 8 (โดยเฉพาะ: กด chip แล้วกล่องไม่ปิดเองและอัปเดตค่า)
 
 ### Phase 5: Sleep timer — [ ] not started
 - [ ] นับถอยหลัง / ตั้งเวลานาฬิกา / หยุดเมื่อจบไฟล์ / fade out แล้ว pause / แสดงเวลาที่เหลือ / ใช้ได้ใน mini player
