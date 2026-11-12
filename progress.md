@@ -1,7 +1,7 @@
 # NSL Media Player — Progress
 
 Last updated: 2026-11-12
-Overall status: Phase 1 done, next Phase 2 (Phase 6 พักไว้)
+Overall status: Phase 1-2 done, next Phase 3 (Phase 6 พักไว้)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -24,9 +24,12 @@ Overall status: Phase 1 done, next Phase 2 (Phase 6 พักไว้)
 - [x] `flutter analyze` (เหลือแค่ info เดิม ไม่มี error/warning) + `flutter test` ผ่าน 120 ข้อ
 - ยังไม่ได้ดูหน้าตาบนเครื่องจริง (ปกขึ้นไหม, มุมโค้ง/ขนาดพอดีไหม) — ไปอยู่ใน Phase 8
 
-### Phase 2: Media keys + SMTC — [ ] not started
-- [ ] เพิ่ม `smtc_windows`, ส่งชื่อเพลง/ปก/สถานะเล่น, รับปุ่ม play/pause/next/prev
-- [ ] สวิตช์ใน Settings
+### Phase 2: Media keys + SMTC — [x] done (2026-11-12) ยกเว้นปก/ศิลปิน
+- [x] เพิ่ม `smtc_windows ^1.1.0` (ต้องมี Rust: ติดตั้ง `Rustlang.Rustup` แล้ว), `lib/services/smtc_service.dart` ส่งชื่อ/สถานะ/ตำแหน่ง รับปุ่ม play/pause/next/prev
+- [x] สวิตช์ "Windows media controls" ใน Settings > Playback (ปิด = ปิด SMTC)
+- [x] `flutter analyze` ไม่มี error/warning, `flutter build windows --release` ผ่าน (มี `smtc_windows.dll`), เปิด exe ได้
+- ข้อจำกัด v1: ยังไม่ส่งปกอัลบั้ม/ศิลปิน (controller ไม่มี tag), mini player แยกโปรเซสไม่มี SMTC (ตอนใช้ mini แผงของแอปหลักจะถูกปิดไว้)
+- ยังไม่ได้ทดสอบกดปุ่ม media key จริง / ดูแผงเสียงของ Windows — ไปอยู่ Phase 8
 
 ### Phase 3: ตั้งปุ่มลัดเอง — [ ] not started
 - [ ] หน้า Shortcuts ใน Settings + Reset to defaults

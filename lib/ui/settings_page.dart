@@ -250,6 +250,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 c.setAutoNext(v);
               },
             ),
+            _toggle(
+              p,
+              'Windows media controls',
+              'Media keys and the Windows volume panel show the current title and control playback.',
+              s.smtcEnabled,
+              (v) => s.put('smtcEnabled', v),
+            ),
             _slider(
               p,
               'Default volume',

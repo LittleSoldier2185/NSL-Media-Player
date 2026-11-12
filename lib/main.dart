@@ -11,6 +11,7 @@ import 'services/library_service.dart';
 import 'services/mini_ipc.dart';
 import 'services/playlist_service.dart';
 import 'services/settings_service.dart';
+import 'services/smtc_service.dart';
 import 'ui/player_page.dart';
 import 'ui/theme.dart';
 
@@ -82,6 +83,9 @@ Future<void> main(List<String> args) async {
     ),
   );
   _applyPlayerSettings(controller, settings, mini: miniChild != null);
+  // Media keys belong to the main window only; started after the first frame
+  // so a native failure cannot leave a blank window.
+  if (miniChild == null) SmtcService.start(controller, settings);
 }
 
 /// Applies saved player options. Runs after the first frame is on screen and

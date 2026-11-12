@@ -77,6 +77,9 @@ class AppSettings extends ChangeNotifier {
   bool get resume => _prefs.getBool('resume') ?? true;
   bool get autoNext => _prefs.getBool('autoNext') ?? true;
 
+  /// Show the title in Windows media controls and react to media keys.
+  bool get smtcEnabled => _prefs.getBool('smtcEnabled') ?? true;
+
   /// Volume applied at startup, or null to keep the last used volume.
   double? get defaultVolume => _prefs.getDouble('defaultVolume');
   double get defaultSpeed => _prefs.getDouble('defaultSpeed') ?? 1.0;
