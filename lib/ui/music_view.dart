@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/media_types.dart';
+import '../services/thumbnail_service.dart';
 import 'controls.dart';
+import 'library_thumb.dart';
 import 'theme.dart';
 
 /// Music mode (audio files) and Audio-only mode (video file, no decoding).
@@ -11,6 +13,7 @@ class MusicView extends StatelessWidget {
   const MusicView({
     super.key,
     required this.controller,
+    required this.thumbnails,
     required this.onOpen,
     required this.onSettings,
     required this.onToggleQueue,
@@ -19,6 +22,7 @@ class MusicView extends StatelessWidget {
   });
 
   final NslPlayerController controller;
+  final ThumbnailService thumbnails;
   final VoidCallback onOpen;
   final VoidCallback onSettings;
   final VoidCallback onToggleQueue;
@@ -47,7 +51,11 @@ class MusicView extends StatelessWidget {
             children: [
               controller.isVideoFile
                   ? _AudioOnlyCard(p: p)
-                  : _CoverPlaceholder(p: p),
+                  : _CoverPlaceholder(
+                      p: p,
+                      path: controller.currentPath,
+                      thumbnails: thumbnails,
+                    ),
               const SizedBox(height: 28),
               Text(
                 controller.title,
@@ -204,8 +212,14 @@ class MusicView extends StatelessWidget {
 }
 
 class _CoverPlaceholder extends StatelessWidget {
-  const _CoverPlaceholder({required this.p});
+  const _CoverPlaceholder({
+    required this.p,
+    required this.path,
+    required this.thumbnails,
+  });
   final NslPalette p;
+  final String? path;
+  final ThumbnailService thumbnails;
 
   @override
   Widget build(BuildContext context) {
@@ -219,6 +233,7 @@ class _CoverPlaceholder extends StatelessWidget {
       ),
       child: child,
     );
+    final rings = ring(232, 0.20, ring(148, 0.45, ring(56, 1, null)));
     return Container(
       width: 320,
       height: 320,
@@ -245,7 +260,17 @@ class _CoverPlaceholder extends StatelessWidget {
         ],
       ),
       alignment: Alignment.center,
-      child: ring(232, 0.20, ring(148, 0.45, ring(56, 1, null))),
+      clipBehavior: Clip.antiAlias,
+      child: path == null
+          ? rings
+          : PathThumb(
+              key: ValueKey(path),
+              path: path!,
+              thumbnails: thumbnails,
+              // Shows the coloured rings until the cover is ready, or when
+              // the file has none.
+              fallbackBuilder: (_) => rings,
+            ),
     );
   }
 }

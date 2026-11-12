@@ -22,10 +22,14 @@ class PathThumb extends StatefulWidget {
     this.modified,
     this.fit = BoxFit.cover,
     this.iconSize = 20,
+    this.fallbackBuilder,
   });
 
   final String path;
   final ThumbnailService thumbnails;
+
+  /// Replaces the default icon shown while there is no picture.
+  final WidgetBuilder? fallbackBuilder;
 
   /// File modification time (ms); read from the file when not given.
   final int? modified;
@@ -80,13 +84,15 @@ class _PathThumbState extends State<PathThumb> {
   Widget build(BuildContext context) {
     final p = context.pal;
     final isVideo = videoExtensions.contains(extensionOf(widget.path));
-    final fallback = Center(
-      child: Icon(
-        isVideo ? Icons.movie_outlined : Icons.music_note,
-        size: widget.iconSize,
-        color: p.textDim,
-      ),
-    );
+    final fallback =
+        widget.fallbackBuilder?.call(context) ??
+        Center(
+          child: Icon(
+            isVideo ? Icons.movie_outlined : Icons.music_note,
+            size: widget.iconSize,
+            color: p.textDim,
+          ),
+        );
     final ticket = _ticket;
     return ColoredBox(
       color: p.track,

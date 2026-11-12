@@ -807,6 +807,9 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                                       !c.showVideo) {
                                                     return MusicView(
                                                       controller: c,
+                                                      thumbnails: widget
+                                                          .library
+                                                          .thumbnails,
                                                       onOpen: _pickFile,
                                                       onSettings: openSettings,
                                                       onToggleQueue:

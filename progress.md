@@ -1,6 +1,51 @@
 # NSL Media Player — Progress
 
+Last updated: 2026-11-12
+Overall status: Phase 1 done, next Phase 2 (Phase 6 พักไว้)
+
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
+
+## Features (ที่ยังเหลือจาก Plan.md)
+| Feature | Priority | Phase |
+|---|---|---|
+| แสดงปกอัลบั้มในหน้าเล่นเพลง (แทนวงกลมสี) | Should | 1 |
+| Media keys + SMTC | Should | 2 |
+| หน้าตั้งปุ่มลัด + Reset to defaults | Should | 3 |
+| กล่องลอยตั้งค่าด่วนในหน้าเล่น | Should | 4 |
+| Sleep timer | Should | 5 |
+| Upscale วิดีโอด้วย GLSL shader | Nice-to-have | 6 (พักไว้ — ไม่ทำจนกว่าผู้ใช้เรียก) |
+| Acrylic/Mica, click-through, audio-only ตอนหน้าต่างถูกบัง, ภาษา | Nice-to-have | 7 |
+| ทดสอบบนเครื่องจริง (Default app, Library, Home, mini ฯลฯ) | Must | 8 |
+
+## Phases
+### Phase 1: ปกอัลบั้มในหน้าเล่นเพลง — [x] done (2026-11-12)
+- [x] ให้ `MusicView` รับ `ThumbnailService` และแสดงปกของไฟล์ที่เล่นอยู่ (fallback เป็นวงกลมสีเดิม ผ่าน `PathThumb.fallbackBuilder`)
+- [x] ไฟล์วิดีโอที่เป็น audio-only ยังใช้การ์ด Audio only เดิม
+- [x] `flutter analyze` (เหลือแค่ info เดิม ไม่มี error/warning) + `flutter test` ผ่าน 120 ข้อ
+- ยังไม่ได้ดูหน้าตาบนเครื่องจริง (ปกขึ้นไหม, มุมโค้ง/ขนาดพอดีไหม) — ไปอยู่ใน Phase 8
+
+### Phase 2: Media keys + SMTC — [ ] not started
+- [ ] เพิ่ม `smtc_windows`, ส่งชื่อเพลง/ปก/สถานะเล่น, รับปุ่ม play/pause/next/prev
+- [ ] สวิตช์ใน Settings
+
+### Phase 3: ตั้งปุ่มลัดเอง — [ ] not started
+- [ ] หน้า Shortcuts ใน Settings + Reset to defaults
+
+### Phase 4: กล่องลอยตั้งค่าด่วนในหน้าเล่น — [ ] not started
+- [ ] ปุ่มฟันเฟือง: คุณภาพ, ความเร็ว, ซับ/แทร็กเสียง (ยังไม่ใส่ตัวเลือก upscale)
+
+### Phase 5: Sleep timer — [ ] not started
+- [ ] นับถอยหลัง / ตั้งเวลานาฬิกา / หยุดเมื่อจบไฟล์ / fade out แล้ว pause / แสดงเวลาที่เหลือ / ใช้ได้ใน mini player
+
+### Phase 6: Upscale GLSL — [ ] พักไว้ (ON HOLD) ห้ามเริ่มจนกว่าผู้ใช้เรียก
+- [ ] ทดลอง shader กับ media_kit, Settings Off/Fast/Quality, แพ็ก .glsl, ปิดเมื่อ `reducedLoad`
+
+### Phase 7: ของเสริม/ขัดเกลา — [ ] not started
+### Phase 8: ทดสอบบนเครื่องจริง (ดูรายการ "ยังไม่ได้ยืนยัน") — [ ] not started
+
+## Notes / Decisions / Blockers
+- 2026-11-12: progress.md เดิมไม่มีโครงเฟส จัดรูปแบบใหม่ตาม nsl-dev โดยเก็บบันทึกเดิมไว้ด้านล่าง; Plan.md ติ๊กไปไกลกว่า progress.md เดิม (Thumbnail/Grid/Playlists/Home แท็บ/History/mini process ทำแล้ว) ถือตาม Plan.md และโค้ด
+- 2026-11-12: Plan.md (f4f0e27) เพิ่ม upscale GLSL / quick settings / sleep timer ผู้ใช้สั่งให้ upscale อยู่ในแผนแต่ **ไม่ทำจนกว่าผู้ใช้จะเรียก** (Phase 6 ON HOLD ข้ามไปเฟสถัดไปได้)
 
 ## สถานะล่าสุด — 2026-11-11
 
