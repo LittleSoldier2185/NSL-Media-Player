@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
 Last updated: 2026-11-13
-Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-d done (Phase 12 PDF ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-d, 12 done (Phase 12.5 Private mode รอยืนยัน) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -94,7 +94,16 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
   - **Duplicates**: pictures keep their file size (`z`) in the index; only pictures sharing a size with another are SHA-1 hashed (`h`; `crypto` is now a direct dependency), in the background after a scan and from saved hashes on start. The oldest copy (by date taken) is kept; the extra copies are hidden on the timeline by default, with a "Hiding N duplicates" toggle in the header. Nothing is ever deleted. `libraryKindsVersion` is now 3, so an old index is rescanned once to get sizes.
   - tests +9 (`test/heic_duplicates_test.dart`: converter cache / failure / missing file using a fake converter; duplicate detection, keep-oldest, index round-trip, unreadable file); 177 pass, analyze has no errors/warnings, release build OK; the WPF conversion script was checked with a real file (icon to valid JPEG).
   - **Not verified on a real HEIC file** (none on this machine): that the Windows HEIF codec decodes it (some HEIC also need the "HEVC Video Extensions"), that it comes out the right way up (EXIF rotation may not carry over), and that the EXIF date is read from HEIC. Also not tried: scrolling a big photo folder with the thumbnail cache → Phase 8.
-### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started
+### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [x] done (2026-11-13)
+- [x] Built to the Phase 9 design (boards "5 · Books — shelf" and "6 · PDF reader"; I first built from my own layout, then read the artifact and matched it). New dependency `pdfrx` (PDFium; `pdfium.dll` is bundled by the Windows build) and `crypto` stays direct.
+- [x] **Shelf** (`lib/ui/books_view.dart`, replaces the placeholder `kind_pages.dart`): filter chips All / Reading / Not started / Finished, search by title, sort (Recently read / Title / Progress), "Continue reading" card with Resume, cover grid (3:4, progress strip on the cover, "Page x of y" / "Not started" / "Finished"), "Add folder" and "Open PDF" (opens a single file without adding it to the library).
+- [x] **Covers**: `ThumbnailService` renders page 1 with PDFium (own queue, one at a time) and caches it on disk like other thumbnails.
+- [x] **Reader** (`lib/ui/book_reader.dart`): continuous scrolling, side panel with Pages (thumbnails) / Marks / Contents (the PDF's outline), toolbar (back, panel, search, bookmark, zoom -/+, Dark pages), floating text search (n of m, previous/next, highlights), page slider with %, "Saved automatically", Now playing dock under it (music keeps playing). Keys: Ctrl+F search, Esc (close search, then leave), B bookmark, +/- zoom.
+- [x] **Remembering** (`lib/services/book_service.dart`, `%APPDATA%\NSL Media Player\books.json`): last page, page count, last opened and bookmarks per file path (case-insensitive); saved a moment after you stop scrolling and when the reader closes; reopening goes to the saved page.
+- [x] **Home**: a "Continue reading" row on Home > All (up to 4 unfinished books that are still in the library).
+- tests +9 (`test/books_test.dart`: position, clamping, in-progress order, bookmarks, restart, damaged file, mark unread, shelf filters/search/empty); 186 pass, analyze has no errors/warnings, release build OK and the exe starts.
+- **Not seen working with a real PDF yet** (no widget test can run PDFium): whether covers render, the reader opens/scrolls/zooms, search finds and highlights text, page thumbnails load, Dark pages looks right, the saved page is restored, and how a 500-page book behaves → Phase 8.
+- Not done (design had them, kept for later): "Layout" button (single page / two pages), author under the title (PDF metadata is not read, so the shelf shows progress instead), search result snippet, rename bookmarks in the UI (the service supports it), "mark as unread" menu on the shelf, password-protected PDFs (shows "Can't open").
 ### Phase 12.5: Private mode (โหมดส่วนตัว ขอรหัสเข้า) — [ ] ร่างแผนแล้ว รอผู้ใช้ยืนยัน
 - [ ] ดูรายละเอียดใน Plan.md (Milestone 6); ล็อกระดับแอปเท่านั้น ไม่เข้ารหัสไฟล์; ซ่อนจากทุกหน้า/ประวัติ/แคช/SMTC ตอนล็อก; ผลต่อ Hub ระบุไว้ใน Milestone 7
 ### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก

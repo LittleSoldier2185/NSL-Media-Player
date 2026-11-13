@@ -1,9 +1,10 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/history_service.dart';
+import '../services/book_service.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/mini_ipc.dart';
@@ -13,7 +14,9 @@ import '../services/thumbnail_service.dart';
 import 'history_view.dart';
 import 'home_sections.dart';
 import 'library_thumb.dart';
-import 'kind_pages.dart';
+import 'book_reader.dart';
+import 'books_view.dart';
+import 'library_thumb.dart';
 import 'photos_view.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';
@@ -30,6 +33,7 @@ class HomePage extends StatefulWidget {
     required this.library,
     required this.playlists,
     required this.photoAlbums,
+    required this.books,
     required this.onOpenFile,
     required this.onOpenFolder,
     required this.onMini,
@@ -52,6 +56,7 @@ class HomePage extends StatefulWidget {
 
   /// Named photo albums (same kind of list as a playlist).
   final PlaylistService photoAlbums;
+  final BookService books;
   final VoidCallback onOpenFile;
   final VoidCallback onOpenFolder;
   final VoidCallback onMini;
@@ -136,6 +141,9 @@ class _HomePageState extends State<HomePage> {
             ),
             NavDest.books => BooksView(
               library: widget.library,
+              books: widget.books,
+              controller: widget.controller,
+              onOpenPlayer: widget.onOpenPlayer,
               onOpenLibrary: widget.onOpenLibrary,
             ),
             NavDest.history => HistoryView(
@@ -153,7 +161,11 @@ class _HomePageState extends State<HomePage> {
               onOpenPlayer: widget.onOpenPlayer,
             ),
             _ => ListenableBuilder(
-              listenable: Listenable.merge([widget.history, widget.library]),
+              listenable: Listenable.merge([
+                widget.history,
+                widget.library,
+                widget.books,
+              ]),
               builder: (context, _) => _homeScroll(p),
             ),
           },
@@ -220,6 +232,7 @@ class _HomePageState extends State<HomePage> {
                     HomeTab.all => [
                       _continue(p, w, HomeTab.all),
                       gap,
+                      ..._continueBooks(p, w, gap),
                       _lucky(p, w),
                       gap,
                       ..._musicPreview(p, w, gap),
@@ -475,6 +488,42 @@ class _HomePageState extends State<HomePage> {
           _continueBody(items, w),
       ],
     );
+  }
+
+  /// Books you started and have not finished (only those still in the library).
+  List<Widget> _continueBooks(NslPalette p, double w, Widget gap) {
+    final shown = <(LibraryItem, BookState)>[];
+    for (final s in widget.books.inProgress) {
+      for (final b in widget.library.books) {
+        if (b.path.toLowerCase() == s.path.toLowerCase()) shown.add((b, s));
+      }
+      if (shown.length >= 4) break;
+    }
+    if (shown.isEmpty) return const [];
+    return [
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _section(p, 'Continue reading'),
+          Wrap(
+            spacing: 16,
+            runSpacing: 14,
+            children: [
+              for (final (b, s) in shown)
+                _BookResume(
+                  book: b,
+                  state: s,
+                  library: widget.library,
+                  books: widget.books,
+                  controller: widget.controller,
+                  onOpenPlayer: widget.onOpenPlayer,
+                ),
+            ],
+          ),
+        ],
+      ),
+      gap,
+    ];
   }
 
   Widget _continueBody(List<HistoryEntry> items, double w) {
@@ -1479,6 +1528,108 @@ class _MiniBanner extends StatelessWidget {
             child: const Text('Bring back here'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A book you are in the middle of: small cover, title, page and progress.
+class _BookResume extends StatelessWidget {
+  const _BookResume({
+    required this.book,
+    required this.state,
+    required this.library,
+    required this.books,
+    this.controller,
+    this.onOpenPlayer,
+  });
+
+  final LibraryItem book;
+  final BookState state;
+  final LibraryService library;
+  final BookService books;
+  final NslPlayerController? controller;
+  final VoidCallback? onOpenPlayer;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.pal;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BookReaderPage(
+              path: book.path,
+              title: book.title,
+              books: books,
+              thumbnails: library.thumbnails,
+              controller: controller,
+              onOpenPlayer: onOpenPlayer,
+            ),
+          ),
+        ),
+        child: Container(
+          width: 300,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: p.panelBorder),
+            color: p.panelTop,
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 54,
+                  height: 72,
+                  child: PathThumb(
+                    path: book.path,
+                    modified: book.modified,
+                    thumbnails: library.thumbnails,
+                    fit: BoxFit.cover,
+                    iconSize: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      book.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: p.text,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Page ${state.page}'
+                      '${state.pageCount > 0 ? ' of ${state.pageCount}' : ''}',
+                      style: TextStyle(fontSize: 12, color: p.textDim),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: state.progress,
+                        minHeight: 4,
+                        color: p.accent,
+                        backgroundColor: p.track,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

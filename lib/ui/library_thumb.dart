@@ -88,7 +88,13 @@ class _PathThumbState extends State<PathThumb> {
         widget.fallbackBuilder?.call(context) ??
         Center(
           child: Icon(
-            isVideo ? Icons.movie_outlined : Icons.music_note,
+            isVideo
+                ? Icons.movie_outlined
+                : kindOf(widget.path) == MediaKind.pdf
+                ? Icons.menu_book_outlined
+                : kindOf(widget.path) == MediaKind.image
+                ? Icons.image_outlined
+                : Icons.music_note,
             size: widget.iconSize,
             color: p.textDim,
           ),

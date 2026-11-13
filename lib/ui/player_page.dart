@@ -16,6 +16,7 @@ import '../services/mini_session_tracker.dart';
 import '../services/settings_service.dart';
 import '../services/history_service.dart';
 import '../services/hub_audio.dart';
+import '../services/book_service.dart';
 import '../services/library_service.dart';
 import '../services/playlist_service.dart';
 import 'home_page.dart';
@@ -39,6 +40,7 @@ class PlayerPage extends StatefulWidget {
     required this.library,
     required this.playlists,
     required this.photoAlbums,
+    required this.books,
     required this.initialArgs,
     this.miniHost,
     this.miniChild,
@@ -50,6 +52,7 @@ class PlayerPage extends StatefulWidget {
   final LibraryService library;
   final PlaylistService playlists;
   final PlaylistService photoAlbums;
+  final BookService books;
   final List<String> initialArgs;
 
   /// Main window: starts the separate mini player process.
@@ -845,6 +848,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                         library: widget.library,
                                         playlists: widget.playlists,
                                         photoAlbums: widget.photoAlbums,
+                                        books: widget.books,
                                         onOpenFile: _pickFile,
                                         onOpenFolder: _openFolderFromHome,
                                         onMini: _openMini,

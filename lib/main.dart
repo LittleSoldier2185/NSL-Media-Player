@@ -12,6 +12,7 @@ import 'services/mini_ipc.dart';
 import 'services/playlist_service.dart';
 import 'services/settings_service.dart';
 import 'services/sleep_port.dart';
+import 'services/book_service.dart';
 import 'services/sleep_timer.dart';
 import 'services/smtc_service.dart';
 import 'ui/player_page.dart';
@@ -69,6 +70,7 @@ Future<void> main(List<String> args) async {
   // Only the main window rescans: two processes must not write the index.
   final library = LibraryService(settings.prefs, autoRescan: miniChild == null);
   final playlists = PlaylistService();
+  final books = BookService();
   final photoAlbums = PlaylistService(
     fileName: 'photo_albums.json',
     defaultName: 'New album',
@@ -91,6 +93,7 @@ Future<void> main(List<String> args) async {
       library: library,
       playlists: playlists,
       photoAlbums: photoAlbums,
+      books: books,
       miniHost: miniHost,
       miniChild: miniChild,
       initialArgs: args,
@@ -138,6 +141,7 @@ class NslApp extends StatelessWidget {
     required this.library,
     required this.playlists,
     required this.photoAlbums,
+    required this.books,
     required this.initialArgs,
     this.miniHost,
     this.miniChild,
@@ -149,6 +153,7 @@ class NslApp extends StatelessWidget {
   final LibraryService library;
   final PlaylistService playlists;
   final PlaylistService photoAlbums;
+  final BookService books;
   final MiniHost? miniHost;
   final MiniChild? miniChild;
   final List<String> initialArgs;
@@ -170,6 +175,7 @@ class NslApp extends StatelessWidget {
           library: library,
           playlists: playlists,
           photoAlbums: photoAlbums,
+          books: books,
           miniHost: miniHost,
           miniChild: miniChild,
           initialArgs: initialArgs,

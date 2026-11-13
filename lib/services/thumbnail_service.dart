@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import 'heic_converter.dart';
 import 'media_types.dart';
@@ -98,11 +99,13 @@ class ThumbnailService {
     RawImageSource? videoFrame,
     RawImageSource? audioArt,
     RawImageSource? image,
+    RawImageSource? pdfCover,
     Downscaler? downscale,
   }) : _dirOverride = dir,
        _videoFrame = videoFrame ?? defaultVideoFrame,
        _audioArt = audioArt ?? defaultAudioArt,
        _image = image ?? defaultImage,
+       _pdfCover = pdfCover ?? defaultPdfCover,
        _downscale = downscale ?? defaultDownscale;
 
   static const thumbWidth = 256;
@@ -112,12 +115,14 @@ class ThumbnailService {
   final RawImageSource _videoFrame;
   final RawImageSource _audioArt;
   final RawImageSource _image;
+  final RawImageSource _pdfCover;
   final Downscaler _downscale;
 
   // Music extraction is cheap and runs in isolates; video needs a decoder
   // instance each, so they go one at a time.
   final _audioPool = _Pool(3);
   final _videoPool = _Pool(1);
+  final _pdfPool = _Pool(1); // each one opens the whole document
   final Map<String, _Job> _inflight = {};
 
   /// Insertion order doubles as LRU order. A null value means "no picture".
@@ -155,11 +160,15 @@ class ThumbnailService {
     }
     var job = _inflight[key];
     if (job == null) {
-      final isVideo = videoExtensions.contains(extensionOf(path));
+      final pool = videoExtensions.contains(extensionOf(path))
+          ? _videoPool
+          : kindOf(path) == MediaKind.pdf
+          ? _pdfPool
+          : _audioPool;
       final j = _Job(key, () => _generate(path, key));
       job = j;
       _inflight[key] = j;
-      unawaited(_start(j, path, isVideo));
+      unawaited(_start(j, pool));
       j.done.future.whenComplete(() {
         if (identical(_inflight[key], j)) _inflight.remove(key);
       });
@@ -178,7 +187,7 @@ class ThumbnailService {
     });
   }
 
-  Future<void> _start(_Job j, String path, bool isVideo) async {
+  Future<void> _start(_Job j, _Pool pool) async {
     // Disk hits are quick, so they skip the (slow) generation queue.
     final cached = await _readDisk(j.key);
     if (cached != null) {
@@ -186,7 +195,7 @@ class ThumbnailService {
       if (!j.done.isCompleted) j.done.complete(cached.isEmpty ? null : cached);
       return;
     }
-    (isVideo ? _videoPool : _audioPool).add(j);
+    pool.add(j);
   }
 
   Future<Uint8List?> _generate(String path, String key) async {
@@ -196,6 +205,8 @@ class ThumbnailService {
           ? await _videoFrame(path)
           : kindOf(path) == MediaKind.image
           ? await _image(path)
+          : kindOf(path) == MediaKind.pdf
+          ? await _pdfCover(path)
           : await _audioArt(path);
       if (raw != null && raw.isNotEmpty) thumb = await _downscale(raw);
     } on Object catch (e) {
@@ -282,6 +293,43 @@ class ThumbnailService {
       // no readable tags: fall back to folder art
     }
     return folderArt(path);
+  }
+
+  /// The first page of a PDF, drawn with PDFium on a white page.
+  static Future<Uint8List?> defaultPdfCover(String path) async {
+    PdfDocument? doc;
+    PdfImage? img;
+    try {
+      pdfrxFlutterInitialize();
+      doc = await PdfDocument.openFile(path);
+      if (doc.pages.isEmpty) return null;
+      final page = doc.pages.first;
+      final w = thumbWidth * 2; // a little larger than needed, for sharpness
+      final h = (w * page.height / page.width).round().clamp(1, w * 4);
+      img = await page.render(
+        fullWidth: w.toDouble(),
+        fullHeight: h.toDouble(),
+        backgroundColor: 0xFFFFFFFF,
+      );
+      if (img == null) return null;
+      final done = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+        img.pixels,
+        img.width,
+        img.height,
+        ui.PixelFormat.bgra8888,
+        done.complete,
+      );
+      final image = await done.future;
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      return data?.buffer.asUint8List();
+    } on Object {
+      return null; // damaged, encrypted or not a PDF
+    } finally {
+      img?.dispose();
+      await doc?.dispose();
+    }
   }
 
   /// The picture file itself (HEIC is converted to JPEG first). The decoder
