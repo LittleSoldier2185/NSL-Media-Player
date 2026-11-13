@@ -121,6 +121,10 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] test เพิ่ม 14 ข้อ (`test/tag_editor_test.dart` ใช้ไฟล์ mp3 ที่สร้างขึ้นจริง: อ่าน/เขียน/ไทย/ปกเพิ่ม-ลบ/PNG/ปฏิเสธไฟล์/คืนไฟล์เมื่อพลาด; `test/tag_dialog_test.dart`: กล่องแก้ไข 1 ไฟล์ แก้หลายไฟล์ ไฟล์ที่แก้ไม่ได้) รวม 223 ผ่าน, analyze ไม่มี error/warning, build release ผ่าน
 - **ยังไม่ได้ลองบนเครื่องจริง**: ปุ่ม Choose picture / Paste (file picker และ clipboard เป็นของระบบ เทสต์ไม่ได้), แก้ไฟล์ที่กำลังเล่นอยู่ (ถ้า Windows ล็อกไฟล์จะขึ้นข้อความให้หยุดเล่นก่อน), ไฟล์ flac/m4a/wav จริงจากผู้ใช้ (เทสต์ใช้ mp3 ที่สร้างเอง), ว่าปกใหม่ขึ้นในหน้า Library/หน้าเล่นเพลง → Phase 8
 - ข้อจำกัด: ชื่อในคิว/แถบ Now playing ของเพลงที่เล่นอยู่ยังเป็นชื่อไฟล์เดิม (ระบบแสดงชื่อไฟล์ ไม่ใช่ tag อยู่แล้ว); ยังไม่แก้ปี/เลขแทร็ก/แนวเพลง, ไม่แก้ tag วิดีโอ, ไม่มีหน้าแก้ในหน้า Home/Playlists/History (มีเฉพาะ Library และ Private > Music & Video)
+### Phase 12.7: ไปยังตำแหน่งไฟล์ (Show in folder / Copy path / Copy file) — [~] in progress (เริ่ม 2026-11-13)
+- [ ] `lib/services/file_locator.dart` (เปิด Explorer เลือกไฟล์, คัดลอกที่อยู่, คัดลอกไฟล์) + test
+- [ ] เมนูใน Library, History, Photos (คลิกขวา), Books (คลิกขวา), Now playing, ตัวดูรูป (แก้ `/select,`), ตัวอ่าน PDF
+- [ ] test + analyze + build
 ### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก
 
 ### Milestone 7: Android + Hub (เพิ่ม 2026-11-12 — รอผู้ใช้ยืนยันลำดับก่อนเริ่ม; เลขเฟสเลื่อนหลังเพิ่ม Milestone 6)
@@ -143,6 +147,7 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 ### Phase 23: ใช้นอกบ้านผ่าน VPN + ความปลอดภัย — [ ] not started
 
 ## Notes / Decisions / Blockers
+- 2026-11-13: ผู้ใช้ขอฟีเจอร์ไปยังตำแหน่งไฟล์เผื่อแชร์ → Phase 12.7 (Should); ตีความว่า = Show in folder + Copy path + Copy file (ผู้ใช้ไม่ได้ระบุรายละเอียด ใช้ค่าที่สมเหตุสมผลที่สุด)
 - 2026-11-13: ผู้ใช้ขอฟีเจอร์แก้ข้อมูลเพลง (ชื่อ/ศิลปิน/อัลบั้ม/ปก เสริมได้) → เพิ่มเป็น Phase 12.6 (Should); ผู้ใช้เลือกเขียนลงไฟล์จริง และปกแบบเลือกรูป+วางจาก clipboard
 - 2026-11-13: เริ่ม Phase 12.5 หลังผู้ใช้เลือกทำต่อจากแผนเดิมใน Plan.md (ตีความว่ายืนยันแล้ว); แนวทาง: ใช้ `LibraryService` ตัวที่สองแยกดัชนี/โฟลเดอร์/แคช แทนการเขียนหน้า Private ใหม่ทั้งหมด จึงได้ฟีเจอร์ของ Library/Photos/Books เดิมครบ; `build/windows` มี CMake cache จากโฟลเดอร์เดิม (`G:\Program Devlop`) ต้องลบ `build/windows` ก่อน build ใหม่; ไฟล์ `windows/flutter/generated_plugin*` เปลี่ยนเพราะ `flutter pub get` (pdfrx/exif) จึง commit ไปด้วย
 - 2026-11-12: วางแผนการเชื่อมต่อมือถือ↔PC (เขียนใน Plan.md Milestone 7): ผู้ใช้ตัดสินใจ (1) TLS + ใบรับรองที่ PC สร้างเอง (2) PC เปิดพร้อม Windows + ถาดระบบ (3) ซิงก์ให้ PC เป็นแหล่งข้อมูลหลัก — ผมเสนอข้อกันของหาย (PC ชนะจุดที่ชนกัน แต่ของที่มือถือเพิ่มถูกรวม + แจ้งเมื่อมีอะไรถูกทับ) รอผู้ใช้ยืนยัน; ความเสี่ยงที่ต้องทดสอบตอน Phase 14-15: mpv บน Android สตรีมผ่านใบรับรอง self-signed ได้ไหม
