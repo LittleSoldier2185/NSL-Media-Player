@@ -7,6 +7,7 @@ import '../services/book_service.dart';
 import '../services/thumbnail_service.dart';
 import 'now_playing_dock.dart';
 import 'shortcut_guard.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 import 'title_bar.dart';
 
@@ -372,6 +373,21 @@ class _BookReaderPageState extends State<BookReaderPage> {
             tooltip: 'Invert the page colours',
             on: _dark,
             onTap: () => setState(() => _dark = !_dark),
+          ),
+          const SizedBox(width: 6),
+          PopupMenuButton<String>(
+            tooltip: 'File',
+            onSelected: (v) => runFileCommand(context, v, widget.path),
+            itemBuilder: (_) => fileMenuItems(divider: false),
+            child: Container(
+              height: 36,
+              width: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: p.track,
+              ),
+              child: Icon(Icons.folder_open, size: 18, color: p.text),
+            ),
           ),
         ],
       ),

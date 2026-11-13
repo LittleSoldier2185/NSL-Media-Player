@@ -7,6 +7,7 @@ import '../services/library_service.dart';
 import '../services/media_types.dart';
 import 'book_reader.dart';
 import 'library_thumb.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 
 enum _Filter { all, reading, notStarted, finished }
@@ -504,6 +505,8 @@ class _BooksViewState extends State<BooksView> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: () => _open(b.path, b.title),
+        onSecondaryTapUp: (d) =>
+            showFileContextMenu(context, d.globalPosition, b.path),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

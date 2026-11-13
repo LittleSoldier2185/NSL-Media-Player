@@ -15,6 +15,7 @@ import '../services/playlist_service.dart';
 import 'now_playing_dock.dart';
 import 'library_thumb.dart';
 import 'photo_common.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 import 'title_bar.dart';
 
@@ -238,10 +239,6 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   }
 
   void _rotate() => setState(() => _turns = (_turns + 1) % 4);
-
-  void _showInFolder() {
-    Process.run('explorer', ['/select,', _item.path]);
-  }
 
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent)
@@ -508,7 +505,15 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
               ),
             ),
           b(Icons.fullscreen, 'Fullscreen (F)', _toggleFull),
-          b(Icons.folder_open, 'Show in folder', _showInFolder),
+          PopupMenuButton<String>(
+            tooltip: 'Show in folder, copy path or file',
+            onSelected: (v) => runFileCommand(context, v, _item.path),
+            itemBuilder: (_) => fileMenuItems(divider: false),
+            child: const Padding(
+              padding: EdgeInsets.all(10),
+              child: Icon(Icons.folder_open, color: Color(0xFFC9CCD6)),
+            ),
+          ),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import 'controls.dart';
 import 'library_items.dart';
 import 'playlist_dialogs.dart';
 import 'tag_dialog.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 
 /// The Library section: scanned folders with search, filter and sorting.
@@ -328,6 +329,7 @@ class _LibraryViewState extends State<LibraryView> {
       onAddToQueue: () => _enqueue([path]),
       onAddToPlaylist: () => _toPlaylist([path]),
       onEdit: canEditTags(path) ? () => _editInfo([path]) : null,
+      onFileCommand: (v) => runFileCommand(context, v, path),
       onSelect: () {
         setState(() => _selecting = true);
         _toggle(path);

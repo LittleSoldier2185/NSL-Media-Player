@@ -8,6 +8,7 @@ import '../services/library_service.dart';
 import '../services/playlist_service.dart';
 import 'home_sections.dart';
 import 'playlist_dialogs.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 import 'time_format.dart';
 
@@ -409,6 +410,8 @@ class _HistoryViewState extends State<HistoryView> {
           _play(e);
         case 'playlist':
           addToPlaylist(context, widget.playlists, [e.path]);
+        case final String c when isFileCommand(c):
+          runFileCommand(context, c, e.path);
         case 'remove':
           widget.history.removeEntry(e.path);
       }
@@ -425,6 +428,7 @@ class _HistoryViewState extends State<HistoryView> {
         child: const Text('Add to playlist…'),
       ),
       const PopupMenuItem(value: 'remove', child: Text('Remove from history')),
+      if (!missing) ...fileMenuItems(),
     ],
   );
 }

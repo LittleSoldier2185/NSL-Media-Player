@@ -4,6 +4,7 @@ import '../player_controller/player_controller.dart';
 import '../services/thumbnail_service.dart';
 import 'controls.dart';
 import 'library_thumb.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 
 /// The playing bar at the bottom of every page but the player: what is
@@ -143,6 +144,15 @@ class NowPlayingDock extends StatelessWidget {
                     TextButton(
                       onPressed: onOpenPlayer,
                       child: const Text('Show picture'),
+                    ),
+                  if (controller.currentPath != null)
+                    PopupMenuButton<String>(
+                      tooltip: 'File',
+                      padding: EdgeInsets.zero,
+                      icon: Icon(Icons.more_vert, size: 20, color: p.icon),
+                      onSelected: (v) =>
+                          runFileCommand(context, v, controller.currentPath!),
+                      itemBuilder: (_) => fileMenuItems(divider: false),
                     ),
                   IconBtn(
                     Icons.open_in_full,

@@ -12,6 +12,7 @@ import '../services/thumbnail_service.dart';
 import 'photo_common.dart';
 import 'photo_viewer.dart';
 import 'library_thumb.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 
 export 'photo_common.dart'
@@ -810,6 +811,8 @@ class _Tile extends StatelessWidget {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: onTap,
+          onSecondaryTapUp: (d) =>
+              showFileContextMenu(context, d.globalPosition, item.path),
           child: Stack(
             fit: StackFit.expand,
             children: [

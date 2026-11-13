@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/library_service.dart';
 import 'library_thumb.dart';
+import 'file_menu.dart';
 import 'theme.dart';
 
 /// What tapping a row / tile and its menu do; built once per item and shared
@@ -16,6 +17,7 @@ class ItemActions {
     required this.onAddToPlaylist,
     required this.onSelect,
     this.onEdit,
+    this.onFileCommand,
   });
 
   final bool playing;
@@ -28,6 +30,9 @@ class ItemActions {
 
   /// Opens "Edit info" (null when the file's tags cannot be edited).
   final VoidCallback? onEdit;
+
+  /// Show in folder / Copy path / Copy file (a value from `fileMenuItems`).
+  final void Function(String command)? onFileCommand;
 }
 
 String _duration(int ms) {
@@ -61,6 +66,7 @@ class _ItemMenu extends StatelessWidget {
         'queue' => actions.onAddToQueue(),
         'playlist' => actions.onAddToPlaylist(),
         'edit' => actions.onEdit?.call(),
+        final String c when isFileCommand(c) => actions.onFileCommand?.call(c),
         _ => actions.onSelect(),
       },
       itemBuilder: (_) => [
@@ -69,6 +75,7 @@ class _ItemMenu extends StatelessWidget {
         if (actions.onEdit != null)
           const PopupMenuItem(value: 'edit', child: Text('Edit info…')),
         const PopupMenuItem(value: 'select', child: Text('Select…')),
+        if (actions.onFileCommand != null) ...fileMenuItems(),
       ],
     );
   }

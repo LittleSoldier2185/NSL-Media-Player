@@ -121,10 +121,13 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] test เพิ่ม 14 ข้อ (`test/tag_editor_test.dart` ใช้ไฟล์ mp3 ที่สร้างขึ้นจริง: อ่าน/เขียน/ไทย/ปกเพิ่ม-ลบ/PNG/ปฏิเสธไฟล์/คืนไฟล์เมื่อพลาด; `test/tag_dialog_test.dart`: กล่องแก้ไข 1 ไฟล์ แก้หลายไฟล์ ไฟล์ที่แก้ไม่ได้) รวม 223 ผ่าน, analyze ไม่มี error/warning, build release ผ่าน
 - **ยังไม่ได้ลองบนเครื่องจริง**: ปุ่ม Choose picture / Paste (file picker และ clipboard เป็นของระบบ เทสต์ไม่ได้), แก้ไฟล์ที่กำลังเล่นอยู่ (ถ้า Windows ล็อกไฟล์จะขึ้นข้อความให้หยุดเล่นก่อน), ไฟล์ flac/m4a/wav จริงจากผู้ใช้ (เทสต์ใช้ mp3 ที่สร้างเอง), ว่าปกใหม่ขึ้นในหน้า Library/หน้าเล่นเพลง → Phase 8
 - ข้อจำกัด: ชื่อในคิว/แถบ Now playing ของเพลงที่เล่นอยู่ยังเป็นชื่อไฟล์เดิม (ระบบแสดงชื่อไฟล์ ไม่ใช่ tag อยู่แล้ว); ยังไม่แก้ปี/เลขแทร็ก/แนวเพลง, ไม่แก้ tag วิดีโอ, ไม่มีหน้าแก้ในหน้า Home/Playlists/History (มีเฉพาะ Library และ Private > Music & Video)
-### Phase 12.7: ไปยังตำแหน่งไฟล์ (Show in folder / Copy path / Copy file) — [~] in progress (เริ่ม 2026-11-13)
-- [ ] `lib/services/file_locator.dart` (เปิด Explorer เลือกไฟล์, คัดลอกที่อยู่, คัดลอกไฟล์) + test
-- [ ] เมนูใน Library, History, Photos (คลิกขวา), Books (คลิกขวา), Now playing, ตัวดูรูป (แก้ `/select,`), ตัวอ่าน PDF
-- [ ] test + analyze + build
+### Phase 12.7: ไปยังตำแหน่งไฟล์ (Show in folder / Copy path / Copy file) — [x] done (2026-11-13)
+- [x] `lib/services/file_locator.dart` (`FileLocator`): **Show in folder** เปิด File Explorer แล้วเลือกไฟล์ (ส่ง `/select,<path>` เป็นอาร์กิวเมนต์เดียว ซึ่งเป็นรูปแบบที่ถูก; ของเดิมในตัวดูรูปส่งแยกสองส่วน Explorer อาจไม่เลือกไฟล์ — แก้แล้ว), ถ้าไฟล์หายแต่โฟลเดอร์ยังอยู่จะเปิดโฟลเดอร์แทนพร้อมแจ้ง; **Copy path** คัดลอกที่อยู่เต็ม (ปรับเป็น `\`); **Copy file** คัดลอกตัวไฟล์ลง clipboard (ผ่าน `pasteboard`) ให้ Ctrl+V ในแชต/อีเมล/Explorer ได้
+- [x] `lib/ui/file_menu.dart`: รายการเมนู 3 คำสั่ง + ฟังก์ชัน `runFileCommand` (แจ้งผลด้วย SnackBar) + `showFileContextMenu` (คลิกขวา)
+- [x] ใส่ใน: เมนู ⋮ ของแถว Library (และ Private > Music & Video), เมนู ⋮ ของ History (ซ่อนเมื่อไฟล์หาย), **คลิกขวา**รูปใน Photos และปกหนังสือใน Books, ปุ่ม ⋮ ในแถบ Now playing (ไฟล์ที่กำลังเล่น), ปุ่มโฟลเดอร์ในแถบล่างของตัวดูรูป (รวมเป็นเมนูเดียวเพราะปุ่มเพิ่มทำให้แถบล้นในหน้าต่างแคบ — เทสต์เดิมจับได้), ปุ่มโฟลเดอร์ในแถบเครื่องมือตัวอ่าน PDF
+- [x] test เพิ่ม 10 ข้อ (`test/file_locator_test.dart` 8 ข้อ: อาร์กิวเมนต์ `/select,` ตัวเดียวทั้งที่มีช่องว่าง, ไฟล์หาย/โฟลเดอร์หาย, copy path/file ทุกกรณี; `test/file_menu_test.dart` 2 ข้อ) รวม 233 ผ่าน, analyze ไม่มี error/warning, build release ผ่าน
+- **ยังไม่ได้ลองบนเครื่องจริง**: Explorer เปิดและเลือกไฟล์จริงไหม (โดยเฉพาะ path ที่มีช่องว่าง/ภาษาไทย), Copy file แล้ววางในแชต/Explorer ได้ไหม, คลิกขวาในไฟล์ Private → Phase 8
+- ไม่ได้ทำ: คลิกขวาในแถว Library/History (ใช้เมนู ⋮), ปุ่ม Share ของ Windows, เมนูใน Playlists/Queue/Home/mini player
 ### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก
 
 ### Milestone 7: Android + Hub (เพิ่ม 2026-11-12 — รอผู้ใช้ยืนยันลำดับก่อนเริ่ม; เลขเฟสเลื่อนหลังเพิ่ม Milestone 6)
