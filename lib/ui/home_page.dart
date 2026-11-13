@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -10,7 +10,6 @@ import '../services/mini_ipc.dart';
 import '../services/playlist_service.dart';
 import '../services/random_picker.dart';
 import '../services/thumbnail_service.dart';
-import 'controls.dart';
 import 'history_view.dart';
 import 'home_sections.dart';
 import 'library_thumb.dart';
@@ -161,20 +160,14 @@ class _HomePageState extends State<HomePage> {
         ),
         // While a separate mini player is open it is the one playing; this
         // window's own player is idle, so say so instead of showing it.
+        // The Now playing dock (shared by every page) shows this window's own
+        // player, so Home no longer has a bar of its own.
         if (widget.miniHost != null)
           ListenableBuilder(
             listenable: widget.miniHost!,
             builder: (_, _) => widget.miniHost!.active
                 ? _MiniBanner(onBringBack: widget.miniHost!.bringBack)
-                : _NowPlayingBar(
-                    controller: widget.controller,
-                    onOpenPlayer: widget.onOpenPlayer,
-                  ),
-          )
-        else
-          _NowPlayingBar(
-            controller: widget.controller,
-            onOpenPlayer: widget.onOpenPlayer,
+                : const SizedBox.shrink(),
           ),
       ],
     );
@@ -1487,94 +1480,6 @@ class _MiniBanner extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _NowPlayingBar extends StatelessWidget {
-  const _NowPlayingBar({required this.controller, required this.onOpenPlayer});
-  final NslPlayerController controller;
-  final VoidCallback onOpenPlayer;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = context.pal;
-    final pl = controller.player;
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        if (controller.current == null) return const SizedBox.shrink();
-        final title = Text(
-          controller.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
-            color: p.text,
-          ),
-        );
-        final transport = Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconBtn(
-              Icons.skip_previous,
-              controller.previous,
-              tooltip: 'Previous',
-            ),
-            StreamBuilder<bool>(
-              stream: pl.stream.playing,
-              initialData: pl.state.playing,
-              builder: (_, s) => PlayButton(
-                playing: s.data ?? false,
-                onTap: controller.togglePlay,
-                size: 40,
-              ),
-            ),
-            IconBtn(Icons.skip_next, controller.next, tooltip: 'Next'),
-            const SizedBox(width: 12),
-            TextButton.icon(
-              onPressed: onOpenPlayer,
-              icon: const Icon(Icons.open_in_full, size: 16),
-              label: const Text('Open player'),
-            ),
-          ],
-        );
-        final seek = SeekRow(controller: controller);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          decoration: BoxDecoration(
-            color: p.panelTop,
-            border: Border(top: BorderSide(color: p.panelBorder)),
-          ),
-          // Wide: title | time bar | buttons on one line. Narrow: the time
-          // bar gets a line of its own so nothing is squeezed.
-          child: LayoutBuilder(
-            builder: (context, box) => box.maxWidth >= 880
-                ? Row(
-                    children: [
-                      Expanded(flex: 3, child: title),
-                      const SizedBox(width: 20),
-                      Expanded(flex: 5, child: seek),
-                      const SizedBox(width: 12),
-                      transport,
-                    ],
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: title),
-                          transport,
-                        ],
-                      ),
-                      seek,
-                    ],
-                  ),
-          ),
-        );
-      },
     );
   }
 }
