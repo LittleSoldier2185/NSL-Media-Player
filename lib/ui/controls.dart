@@ -49,109 +49,148 @@ class ControlsBar extends StatelessWidget {
         children: [
           SeekRow(controller: controller),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              StreamBuilder<bool>(
-                stream: p.stream.playing,
-                initialData: p.state.playing,
-                builder: (_, s) => PlayButton(
-                  playing: s.data ?? false,
-                  onTap: controller.togglePlay,
-                ),
-              ),
-              const SizedBox(width: 12),
-              IconBtn(
-                Icons.skip_previous,
-                controller.previous,
-                tooltip: 'Previous (P)',
-              ),
-              IconBtn(Icons.skip_next, controller.next, tooltip: 'Next (N)'),
-              IconBtn(
-                Icons.replay_5,
-                () => controller.seekRelative(
-                  Duration(seconds: -controller.seekStep),
-                ),
-              ),
-              IconBtn(
-                Icons.forward_5,
-                () => controller.seekRelative(
-                  Duration(seconds: controller.seekStep),
-                ),
-              ),
-              const SizedBox(width: 12),
-              StreamBuilder<double>(
-                stream: p.stream.volume,
-                initialData: p.state.volume,
-                builder: (_, s) {
-                  final v = s.data ?? 100;
-                  return Row(
-                    children: [
-                      IconBtn(
-                        v == 0 ? Icons.volume_off : Icons.volume_up,
-                        controller.toggleMute,
-                      ),
-                      SizedBox(
-                        width: 110,
-                        child: NslSlider(
-                          value: v / 100,
-                          color: context.pal.icon,
-                          onChanged: (x) => controller.setVolume(x * 100),
+          LayoutBuilder(
+            builder: (context, box) {
+              // Narrow window: drop the volume slider and let the right-hand
+              // buttons shrink instead of overflowing.
+              final narrow = box.maxWidth < 900;
+              return Row(
+                children: [
+                  StreamBuilder<bool>(
+                    stream: p.stream.playing,
+                    initialData: p.state.playing,
+                    builder: (_, s) => PlayButton(
+                      playing: s.data ?? false,
+                      onTap: controller.togglePlay,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconBtn(
+                    Icons.skip_previous,
+                    controller.previous,
+                    tooltip: 'Previous (P)',
+                  ),
+                  IconBtn(
+                    Icons.skip_next,
+                    controller.next,
+                    tooltip: 'Next (N)',
+                  ),
+                  IconBtn(
+                    Icons.replay_5,
+                    () => controller.seekRelative(
+                      Duration(seconds: -controller.seekStep),
+                    ),
+                  ),
+                  IconBtn(
+                    Icons.forward_5,
+                    () => controller.seekRelative(
+                      Duration(seconds: controller.seekStep),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  StreamBuilder<double>(
+                    stream: p.stream.volume,
+                    initialData: p.state.volume,
+                    builder: (_, s) {
+                      final v = s.data ?? 100;
+                      return Row(
+                        children: [
+                          IconBtn(
+                            v == 0 ? Icons.volume_off : Icons.volume_up,
+                            controller.toggleMute,
+                          ),
+                          if (!narrow)
+                            SizedBox(
+                              width: 110,
+                              child: NslSlider(
+                                value: v / 100,
+                                color: context.pal.icon,
+                                onChanged: (x) => controller.setVolume(x * 100),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          children: [
+                            ListenableBuilder(
+                              listenable: controller,
+                              builder: (context, _) {
+                                final p = context.pal;
+                                return Row(
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Shuffle',
+                                      onPressed: controller.toggleShuffle,
+                                      color: controller.shuffle
+                                          ? p.accentInk
+                                          : p.icon,
+                                      icon: const Icon(Icons.shuffle),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Repeat',
+                                      onPressed: controller.cycleRepeat,
+                                      color: controller.repeat == NslRepeat.off
+                                          ? p.icon
+                                          : p.accentInk,
+                                      icon: Icon(
+                                        controller.repeat == NslRepeat.one
+                                            ? Icons.repeat_one
+                                            : Icons.repeat,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Audio only',
+                                      onPressed: controller.toggleAudioOnly,
+                                      color: controller.audioOnly
+                                          ? p.accentInk
+                                          : p.icon,
+                                      icon: const Icon(Icons.headphones),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            QuickSettingsButton(controller: controller),
+                            IconBtn(
+                              Icons.queue_music,
+                              onToggleQueue,
+                              tooltip: 'Queue',
+                            ),
+                            IconBtn(
+                              Icons.picture_in_picture_alt,
+                              onMini,
+                              tooltip: 'Mini player (Ctrl+M)',
+                            ),
+                            IconBtn(
+                              Icons.folder_open,
+                              onOpen,
+                              tooltip: 'Open (Ctrl+O)',
+                            ),
+                            IconBtn(
+                              Icons.settings_outlined,
+                              onSettings,
+                              tooltip: 'Settings',
+                            ),
+                            IconBtn(
+                              Icons.fullscreen,
+                              onFullscreen,
+                              tooltip: 'Fullscreen (F)',
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  );
-                },
-              ),
-              const Spacer(),
-              ListenableBuilder(
-                listenable: controller,
-                builder: (context, _) {
-                  final p = context.pal;
-                  return Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Shuffle',
-                        onPressed: controller.toggleShuffle,
-                        color: controller.shuffle ? p.accentInk : p.icon,
-                        icon: const Icon(Icons.shuffle),
-                      ),
-                      IconButton(
-                        tooltip: 'Repeat',
-                        onPressed: controller.cycleRepeat,
-                        color: controller.repeat == NslRepeat.off
-                            ? p.icon
-                            : p.accentInk,
-                        icon: Icon(
-                          controller.repeat == NslRepeat.one
-                              ? Icons.repeat_one
-                              : Icons.repeat,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Audio only',
-                        onPressed: controller.toggleAudioOnly,
-                        color: controller.audioOnly ? p.accentInk : p.icon,
-                        icon: const Icon(Icons.headphones),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              QuickSettingsButton(controller: controller),
-              IconBtn(Icons.queue_music, onToggleQueue, tooltip: 'Queue'),
-              IconBtn(
-                Icons.picture_in_picture_alt,
-                onMini,
-                tooltip: 'Mini player (Ctrl+M)',
-              ),
-              IconBtn(Icons.folder_open, onOpen, tooltip: 'Open (Ctrl+O)'),
-              IconBtn(Icons.settings_outlined, onSettings, tooltip: 'Settings'),
-              IconBtn(
-                Icons.fullscreen,
-                onFullscreen,
-                tooltip: 'Fullscreen (F)',
-              ),
-            ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
