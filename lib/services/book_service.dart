@@ -23,6 +23,12 @@ class Bookmark {
   }
 }
 
+/// How a PDF's pages are laid out in the reader.
+enum BookViewMode { scroll, single, spread }
+
+/// How much of a page (or spread) fits the window.
+enum BookFit { width, page, actual }
+
 /// What the app remembers about one book: where you stopped and your marks.
 class BookState {
   BookState({
@@ -30,6 +36,9 @@ class BookState {
     this.page = 1,
     this.pageCount = 0,
     this.opened = 0,
+    this.viewMode = BookViewMode.scroll,
+    this.fit,
+    this.coverAlone = true,
     List<Bookmark>? bookmarks,
   }) : bookmarks = bookmarks ?? [];
 
@@ -45,6 +54,19 @@ class BookState {
   int opened;
   final List<Bookmark> bookmarks;
 
+  /// How this book is shown (remembered per book).
+  BookViewMode viewMode;
+
+  /// Fit chosen for this book; null = the mode's default (see [fitFor]).
+  BookFit? fit;
+
+  /// Two-page spread: the first page (the cover) stands alone.
+  bool coverAlone;
+
+  /// The fit in use: [fit], else width for scrolling and whole page otherwise.
+  BookFit get fitFor =>
+      fit ?? (viewMode == BookViewMode.scroll ? BookFit.width : BookFit.page);
+
   /// 0..1 of the way through, or 0 when the length is not known yet.
   double get progress =>
       pageCount <= 1 ? 0 : ((page - 1) / (pageCount - 1)).clamp(0.0, 1.0);
@@ -59,6 +81,9 @@ class BookState {
     'page': page,
     'count': pageCount,
     'opened': opened,
+    if (viewMode != BookViewMode.scroll) 'view': viewMode.name,
+    if (fit != null) 'fit': fit!.name,
+    if (!coverAlone) 'cover': false,
     if (bookmarks.isNotEmpty) 'marks': [for (final b in bookmarks) b.toJson()],
   };
 
@@ -71,6 +96,10 @@ class BookState {
       page: j['page'] is int ? (j['page'] as int).clamp(1, 1 << 30) : 1,
       pageCount: j['count'] is int ? j['count'] as int : 0,
       opened: j['opened'] is int ? j['opened'] as int : 0,
+      viewMode:
+          BookViewMode.values.asNameMap()[j['view']] ?? BookViewMode.scroll,
+      fit: BookFit.values.asNameMap()[j['fit']],
+      coverAlone: j['cover'] is bool ? j['cover'] as bool : true,
       bookmarks: [
         if (j['marks'] is List)
           for (final m in j['marks'] as List)
@@ -162,6 +191,23 @@ class BookService extends ChangeNotifier {
     if (b.page == p && b.opened > 0) return;
     b.page = p;
     if (b.opened == 0) b.opened = DateTime.now().millisecondsSinceEpoch;
+    _changed();
+  }
+
+  /// Remembers how [path] is shown. [fit] null = the mode's default.
+  void saveView(
+    String path, {
+    required BookViewMode mode,
+    BookFit? fit,
+    required bool coverAlone,
+  }) {
+    final b = _ensure(path);
+    if (b.viewMode == mode && b.fit == fit && b.coverAlone == coverAlone) {
+      return;
+    }
+    b.viewMode = mode;
+    b.fit = fit;
+    b.coverAlone = coverAlone;
     _changed();
   }
 

@@ -128,8 +128,13 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] test เพิ่ม 10 ข้อ (`test/file_locator_test.dart` 8 ข้อ: อาร์กิวเมนต์ `/select,` ตัวเดียวทั้งที่มีช่องว่าง, ไฟล์หาย/โฟลเดอร์หาย, copy path/file ทุกกรณี; `test/file_menu_test.dart` 2 ข้อ) รวม 233 ผ่าน, analyze ไม่มี error/warning, build release ผ่าน
 - **ยังไม่ได้ลองบนเครื่องจริง**: Explorer เปิดและเลือกไฟล์จริงไหม (โดยเฉพาะ path ที่มีช่องว่าง/ภาษาไทย), Copy file แล้ววางในแชต/Explorer ได้ไหม, คลิกขวาในไฟล์ Private → Phase 8
 - ไม่ได้ทำ: คลิกขวาในแถว Library/History (ใช้เมนู ⋮), ปุ่ม Share ของ Windows, เมนูใน Playlists/Queue/Home/mini player
-### Phase 12.8: โหมดดู PDF (Scroll / Single page / Two-page spread + Fit + จำต่อเล่ม) — [~] in progress
-- [ ] โหมด Scroll/Single/Spread (+ตัวเลือกหน้าปกเดี่ยว), Fit width/page/actual, เปลี่ยนหน้าด้วยคีย์/ล้อเมาส์, จำต่อเล่มใน `books.json`, test
+### Phase 12.8: โหมดดู PDF (Scroll / Single page / Two-page spread + Fit + จำต่อเล่ม) — [x] done (2026-11-13)
+- [x] `lib/ui/book_layout.dart` (`BookLayout`, `groupPages`): คำนวณตำแหน่งหน้าและ "หน่วย" ที่เปิดทีละครั้ง (หน้าเดี่ยว/คู่หน้า, ติ๊ก "Cover on its own page" ให้หน้าปกอยู่เดี่ยว: 1 | 2 3 | 4 5) เป็นฟังก์ชันล้วน ทดสอบได้
+- [x] `lib/ui/book_reader.dart`: ปุ่ม **View** ในแถบเครื่องมือ (Scroll / Single page / Two pages, Fit width / Fit page / Actual size, Cover on its own page); โหมด Single/Spread ใช้ `layoutPages` ของ pdfrx เรียงหน้าแนวนอนแล้วซูม/เลื่อนไปที่หน้านั้นให้พอดี จึงยังค้นหา/ไฮไลต์/bookmark ได้เหมือนเดิม; เปลี่ยนหน้าด้วย ←/→, PageUp/PageDown, Home/End และล้อเมาส์ (เฉพาะ Fit page และยังไม่ซูมเข้า); แถบเลื่อนหน้า/thumbnails/bookmark ใช้ได้; ย่อ-ขยายหน้าต่างแล้ว fit ใหม่อัตโนมัติ
+- [x] `BookState` เก็บ `viewMode`/`fit`/`coverAlone` ต่อเล่มใน `books.json` (`BookService.saveView`); ไฟล์เก่าอ่านได้ ค่าที่ไม่รู้จักถอยเป็นค่าเริ่มต้น; เล่มใหม่เป็น Scroll เหมือนเดิม
+- [x] test เพิ่ม 13 ข้อ (`test/book_view_test.dart`) รวม 246 ผ่าน, analyze ไม่มี error/warning, build release ผ่าน
+- **ยังไม่ได้ลองบนเครื่องจริง** (ตัว pdfrx เรนเดอร์ใน test ไม่ได้): หน้าแสดงพอดีจริงไหมในแต่ละโหมด/fit, หน้าขนาดต่างกันในคู่หน้า, ล้อเมาส์เปลี่ยนหน้า, ซูมแล้วลากหน้า, resize หน้าต่าง, ค้นหาข้อความในโหมดหน้าเดี่ยว → Phase 8
+- ตัดจากที่เขียนในแผน: ไม่ใช้ Space เปลี่ยนหน้า (ชนกับปุ่มเล่น/หยุดของเครื่องเล่น); ล้อเมาส์เปลี่ยนหน้าเมื่อ Fit page เท่านั้น (Fit width/Actual size ล้อเลื่อนภายในหน้า ใช้ ←/→ เปลี่ยนหน้า)
 ### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก
 
 ### Milestone 7: Android + Hub (เพิ่ม 2026-11-12 — รอผู้ใช้ยืนยันลำดับก่อนเริ่ม; เลขเฟสเลื่อนหลังเพิ่ม Milestone 6)

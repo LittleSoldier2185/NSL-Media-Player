@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -5,6 +6,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../player_controller/player_controller.dart';
 import '../services/book_service.dart';
 import '../services/thumbnail_service.dart';
+import 'book_layout.dart';
 import 'now_playing_dock.dart';
 import 'shortcut_guard.dart';
 import 'file_menu.dart';
@@ -60,12 +62,23 @@ class _BookReaderPageState extends State<BookReaderPage> {
   List<PdfOutlineNode> _outline = const [];
   bool _failed = false;
 
+  // How the pages are shown (remembered per book).
+  late BookViewMode _mode;
+  BookFit? _fit;
+  late bool _coverAlone;
+  BookLayout? _bl; // the layout in use, for single page / spread
+  Size? _lastViewSize;
+  DateTime _lastWheel = DateTime.fromMillisecondsSinceEpoch(0);
+
   @override
   void initState() {
     super.initState();
     final saved = widget.books.stateOf(widget.path);
     _page = saved?.page ?? 1;
     _pages = saved?.pageCount ?? 0;
+    _mode = saved?.viewMode ?? BookViewMode.scroll;
+    _fit = saved?.fit;
+    _coverAlone = saved?.coverAlone ?? true;
     widget.books.addListener(_onBooks);
   }
 
@@ -95,6 +108,11 @@ class _BookReaderPageState extends State<BookReaderPage> {
     widget.books.opened(widget.path, pageCount: n);
     if (!mounted) return;
     setState(() => _pages = n);
+    if (_mode != BookViewMode.scroll || _fit != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyFit(_page, animate: false),
+      );
+    }
     doc.loadOutline().then((o) {
       if (mounted) setState(() => _outline = o);
     }, onError: (Object _) {});
@@ -108,7 +126,123 @@ class _BookReaderPageState extends State<BookReaderPage> {
 
   void _goTo(int n) {
     if (!_pdf.isReady) return;
-    _pdf.goToPage(pageNumber: n.clamp(1, _pages > 0 ? _pages : n));
+    final page = n.clamp(1, _pages > 0 ? _pages : n);
+    if (_mode == BookViewMode.scroll && _fit == null) {
+      _pdf.goToPage(pageNumber: page);
+    } else {
+      _applyFit(page);
+    }
+  }
+
+  // ---- view mode and fit ----
+
+  BookFit get _effFit =>
+      _fit ?? (_mode == BookViewMode.scroll ? BookFit.width : BookFit.page);
+
+  PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
+    final bl = BookLayout.build(
+      [for (final pg in pages) Size(pg.width, pg.height)],
+      mode: _mode,
+      coverAlone: _coverAlone,
+      margin: params.margin,
+    );
+    _bl = bl;
+    return PdfPageLayout(pageLayouts: bl.pages, documentSize: bl.documentSize);
+  }
+
+  /// The area to bring into view for [page]: its whole unit (one page, or the
+  /// pair in a spread).
+  Rect? _unitRect(int page) {
+    if (!_pdf.isReady) return null;
+    final bl = _bl;
+    if (_mode != BookViewMode.scroll && bl != null && bl.units.isNotEmpty) {
+      return bl.unitRect(bl.unitOf(page));
+    }
+    final rects = _pdf.layout.pageLayouts;
+    if (page < 1 || page > rects.length) return null;
+    return rects[page - 1];
+  }
+
+  Matrix4? _fitMatrix(Rect rect) {
+    final v = _pdf.viewSize;
+    if (v.isEmpty || rect.isEmpty) return null;
+    const pad = 8.0;
+    Matrix4 centred(double z) {
+      final viewH = v.height / z;
+      final cy = rect.height + pad * 2 <= viewH
+          ? rect.center.dy
+          : rect.top - pad + viewH / 2;
+      return _pdf.calcMatrixFor(Offset(rect.center.dx, cy), zoom: z);
+    }
+
+    return switch (_effFit) {
+      BookFit.page => _pdf.calcMatrixForRect(rect, margin: pad),
+      BookFit.width => centred((v.width - pad * 2) / rect.width),
+      BookFit.actual => centred(1.0),
+    };
+  }
+
+  Future<void> _applyFit(int page, {bool animate = true}) async {
+    if (!mounted) return;
+    final rect = _unitRect(page);
+    if (rect == null) return;
+    final m = _fitMatrix(rect);
+    if (m == null) return;
+    await _pdf.goTo(
+      m,
+      duration: animate ? const Duration(milliseconds: 200) : Duration.zero,
+    );
+  }
+
+  void _setView({BookViewMode? mode, BookFit? fit, bool? coverAlone}) {
+    setState(() {
+      if (mode != null) _mode = mode;
+      if (fit != null) _fit = fit;
+      if (coverAlone != null) _coverAlone = coverAlone;
+      if (mode != null || coverAlone != null) _bl = null;
+    });
+    widget.books.saveView(
+      widget.path,
+      mode: _mode,
+      fit: _fit,
+      coverAlone: _coverAlone,
+    );
+    // The viewer re-lays the pages on this rebuild; show the page after it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyFit(_page, animate: false),
+      );
+    });
+  }
+
+  /// Turns to the next ([dir] 1) or previous (-1) page or spread.
+  void _step(int dir) {
+    final bl = _bl;
+    if (_mode == BookViewMode.scroll || bl == null || bl.units.isEmpty) return;
+    final to = (bl.unitOf(_page) + dir).clamp(0, bl.units.length - 1);
+    final first = bl.units[to].first;
+    _pageChanged(first);
+    _applyFit(first);
+  }
+
+  void _onWheel(PointerSignalEvent e) {
+    if (e is! PointerScrollEvent ||
+        _mode == BookViewMode.scroll ||
+        _effFit != BookFit.page ||
+        !_pdf.isReady ||
+        HardwareKeyboard.instance.isControlPressed) {
+      return;
+    }
+    // Only when the page is whole on screen; zoomed in, the wheel pans.
+    final rect = _unitRect(_page);
+    final fit = rect == null ? null : _fitMatrix(rect);
+    if (fit == null || _pdf.currentZoom > fit.getMaxScaleOnAxis() * 1.05) {
+      return;
+    }
+    final now = DateTime.now();
+    if (now.difference(_lastWheel) < const Duration(milliseconds: 250)) return;
+    _lastWheel = now;
+    _step(e.scrollDelta.dy > 0 ? 1 : -1);
   }
 
   // ---- search ----
@@ -165,6 +299,17 @@ class _BookReaderPageState extends State<BookReaderPage> {
     } else if (k == LogicalKeyboardKey.minus ||
         k == LogicalKeyboardKey.numpadSubtract) {
       if (_pdf.isReady) _pdf.zoomDown();
+    } else if (_mode != BookViewMode.scroll &&
+        (k == LogicalKeyboardKey.arrowRight ||
+            k == LogicalKeyboardKey.pageDown)) {
+      _step(1);
+    } else if (_mode != BookViewMode.scroll &&
+        (k == LogicalKeyboardKey.arrowLeft || k == LogicalKeyboardKey.pageUp)) {
+      _step(-1);
+    } else if (_mode != BookViewMode.scroll && k == LogicalKeyboardKey.home) {
+      _goTo(1);
+    } else if (_mode != BookViewMode.scroll && k == LogicalKeyboardKey.end) {
+      _goTo(_pages);
     } else {
       return KeyEventResult.ignored;
     }
@@ -197,7 +342,27 @@ class _BookReaderPageState extends State<BookReaderPage> {
                   Expanded(
                     child: Stack(
                       children: [
-                        Positioned.fill(child: _viewer()),
+                        Positioned.fill(
+                          child: LayoutBuilder(
+                            builder: (context, box) {
+                              final size = box.biggest;
+                              if (_lastViewSize != null &&
+                                  _lastViewSize != size &&
+                                  (_mode != BookViewMode.scroll ||
+                                      _fit != null)) {
+                                // A resized window: fit the page again.
+                                WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) => _applyFit(_page, animate: false),
+                                );
+                              }
+                              _lastViewSize = size;
+                              return Listener(
+                                onPointerSignal: _onWheel,
+                                child: _viewer(),
+                              );
+                            },
+                          ),
+                        ),
                         if (_searching)
                           Positioned(right: 22, top: 18, child: _searchBox(p)),
                       ],
@@ -244,6 +409,7 @@ class _BookReaderPageState extends State<BookReaderPage> {
       initialPageNumber: _page,
       params: PdfViewerParams(
         backgroundColor: _paper,
+        layoutPages: _mode == BookViewMode.scroll ? null : _layoutPages,
         pageImageColorFilter: _dark ? _invert : null,
         onViewerReady: _ready,
         onPageChanged: _pageChanged,
@@ -348,6 +514,8 @@ class _BookReaderPageState extends State<BookReaderPage> {
             onTap: _toggleMark,
           ),
           const SizedBox(width: 6),
+          _viewMenu(p),
+          const SizedBox(width: 6),
           _toolButton(
             p,
             icon: Icons.remove,
@@ -390,6 +558,89 @@ class _BookReaderPageState extends State<BookReaderPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _viewMenu(NslPalette p) {
+    PopupMenuItem<String> item(
+      String value,
+      String label,
+      bool on, {
+      bool enabled = true,
+    }) => CheckedPopupMenuItem<String>(
+      value: value,
+      checked: on,
+      enabled: enabled,
+      child: Text(label),
+    );
+    final fit = _effFit;
+    return PopupMenuButton<String>(
+      tooltip: 'View mode and fit',
+      onSelected: (v) {
+        switch (v) {
+          case 'scroll':
+            _setView(mode: BookViewMode.scroll);
+          case 'single':
+            _setView(mode: BookViewMode.single);
+          case 'spread':
+            _setView(mode: BookViewMode.spread);
+          case 'width':
+            _setView(fit: BookFit.width);
+          case 'page':
+            _setView(fit: BookFit.page);
+          case 'actual':
+            _setView(fit: BookFit.actual);
+          case 'cover':
+            _setView(coverAlone: !_coverAlone);
+        }
+      },
+      itemBuilder: (_) => [
+        item('scroll', 'Scroll', _mode == BookViewMode.scroll),
+        item('single', 'Single page', _mode == BookViewMode.single),
+        item('spread', 'Two pages', _mode == BookViewMode.spread),
+        const PopupMenuDivider(),
+        item('width', 'Fit width', fit == BookFit.width),
+        item('page', 'Fit page', fit == BookFit.page),
+        item('actual', 'Actual size', fit == BookFit.actual),
+        const PopupMenuDivider(),
+        item(
+          'cover',
+          'Cover on its own page',
+          _coverAlone,
+          enabled: _mode == BookViewMode.spread,
+        ),
+      ],
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: p.track,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              switch (_mode) {
+                BookViewMode.scroll => Icons.view_day_outlined,
+                BookViewMode.single => Icons.crop_portrait,
+                BookViewMode.spread => Icons.auto_stories_outlined,
+              },
+              size: 18,
+              color: p.text,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'View',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: p.text,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
