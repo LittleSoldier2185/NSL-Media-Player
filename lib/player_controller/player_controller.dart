@@ -346,8 +346,30 @@ class NslPlayerController extends ChangeNotifier {
   }
 
   void _saveQueue() {
-    _prefs?.setStringList('queue', [for (final q in queue) q.path]);
-    _prefs?.setInt('queueIndex', index);
+    // Private files are never written to the saved queue.
+    final hide = isPrivate;
+    final shown = [
+      for (final q in queue)
+        if (hide == null || !hide(q.path)) q.path,
+    ];
+    _prefs?.setStringList('queue', shown);
+    _prefs?.setInt('queueIndex', shown.length == queue.length ? index : 0);
+  }
+
+  /// Tells which files are private (set by the app). They are kept out of the
+  /// saved queue, and [dropPrivate] removes them when Private locks.
+  bool Function(String path)? isPrivate;
+
+  /// Stops playing private files and takes them out of the queue.
+  Future<void> dropPrivate() async {
+    final hide = isPrivate;
+    if (hide == null || !queue.any((q) => hide(q.path))) return;
+    await player.pause();
+    for (var i = queue.length - 1; i >= 0; i--) {
+      if (hide(queue[i].path)) await removeAt(i);
+    }
+    if (queue.isEmpty) await player.stop();
+    notifyListeners();
   }
 
   Future<void> togglePlay() async {

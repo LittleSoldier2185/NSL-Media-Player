@@ -16,7 +16,6 @@ import 'home_sections.dart';
 import 'library_thumb.dart';
 import 'book_reader.dart';
 import 'books_view.dart';
-import 'library_thumb.dart';
 import 'photos_view.dart';
 import 'library_view.dart';
 import 'playlists_view.dart';

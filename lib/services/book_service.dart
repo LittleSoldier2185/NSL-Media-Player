@@ -85,9 +85,13 @@ class BookState {
 /// file forgets its place (the file itself is never changed).
 class BookService extends ChangeNotifier {
   /// [file] overrides the storage location (used by tests).
-  BookService({File? file}) : _fileOverride = file {
+  BookService({File? file, this.fileName = 'books.json'})
+    : _fileOverride = file {
     _load();
   }
+
+  /// The file's name inside the app's data folder.
+  final String fileName;
 
   final File? _fileOverride;
   final Map<String, BookState> _books = {};
@@ -96,7 +100,7 @@ class BookService extends ChangeNotifier {
   File? get _file {
     if (_fileOverride != null) return _fileOverride;
     final base = Platform.environment['APPDATA'];
-    return base == null ? null : File('$base\\NSL Media Player\\books.json');
+    return base == null ? null : File('$base\\NSL Media Player\\$fileName');
   }
 
   static String _key(String path) => path.toLowerCase();
@@ -229,6 +233,13 @@ class BookService extends ChangeNotifier {
     // Pages change as fast as you scroll: write once things settle.
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 800), save);
+  }
+
+  /// Forgets every place and bookmark.
+  Future<void> clear() async {
+    _books.clear();
+    await save();
+    notifyListeners();
   }
 
   /// Writes to disk now (also called when a reader closes).

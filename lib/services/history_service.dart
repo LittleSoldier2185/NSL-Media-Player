@@ -74,6 +74,12 @@ class HistoryService extends ChangeNotifier {
   final bool _track;
   bool get _enabled => _track && (_settings?.keepHistory ?? true);
 
+  /// Tells which files are private (set by the app): nothing about them is
+  /// remembered (no history entry, play count, resume position or watch time).
+  bool Function(String path)? isPrivate;
+  bool _hidden(String? path) =>
+      path != null && (isPrivate?.call(path) ?? false);
+
   /// False when history is turned off in Settings.
   bool get enabled => _enabled;
 
@@ -97,7 +103,7 @@ class HistoryService extends ChangeNotifier {
     final today = dayKey(DateTime.now());
     for (final e in entries) {
       final path = e['path'];
-      if (path is! String) continue;
+      if (path is! String || _hidden(path)) continue;
       final seconds = e['seconds'] is num
           ? (e['seconds'] as num).toDouble()
           : 0.0;
@@ -175,7 +181,7 @@ class HistoryService extends ChangeNotifier {
     _lastPos = null;
     _posMs = 0;
     _durMs = 0;
-    if (path == null) return;
+    if (path == null || _hidden(path)) return;
     final month = plays.putIfAbsent(monthKey(DateTime.now()), () => {});
     month[path] = (month[path] ?? 0) + 1;
     _upsert(path, 0, 0);
@@ -184,7 +190,7 @@ class HistoryService extends ChangeNotifier {
   }
 
   void _onPosition(Duration pos) {
-    if (!_enabled) return;
+    if (!_enabled || _hidden(_path)) return;
     _posMs = pos.inMilliseconds;
     final last = _lastPos;
     _lastPos = pos;
@@ -245,7 +251,7 @@ class HistoryService extends ChangeNotifier {
   void _persist() {
     if (!_enabled) return;
     final path = _path;
-    if (path != null && _durMs > 0) {
+    if (path != null && _durMs > 0 && !_hidden(path)) {
       final e = entries.where((x) => x.path == path).firstOrNull;
       if (e != null) {
         e.posMs = _posMs;

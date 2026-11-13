@@ -11,6 +11,7 @@ enum NavDest {
   playlists,
   history,
   player,
+  private,
   settings,
 }
 
@@ -47,6 +48,7 @@ class AppSidebar extends StatelessWidget {
     required this.current,
     required this.onSelect,
     required this.onToggleWide,
+    this.showPrivate = false,
   });
 
   final SidebarMode mode;
@@ -55,6 +57,9 @@ class AppSidebar extends StatelessWidget {
 
   /// Switches between [SidebarMode.open] and [SidebarMode.rail].
   final VoidCallback onToggleWide;
+
+  /// Show the Private entry (it can be hidden, then only its shortcut opens it).
+  final bool showPrivate;
 
   static const _items = [
     (NavDest.home, Icons.home_outlined, 'Home', 'Home (H)'),
@@ -113,6 +118,15 @@ class AppSidebar extends StatelessWidget {
                         wide: wide,
                         selected: current == dest,
                         onTap: () => onSelect(dest),
+                      ),
+                    if (showPrivate)
+                      _NavItem(
+                        icon: Icons.lock_outline,
+                        label: 'Private',
+                        tooltip: 'Private',
+                        wide: wide,
+                        selected: current == NavDest.private,
+                        onTap: () => onSelect(NavDest.private),
                       ),
                     const Spacer(),
                     Divider(height: 13, color: p.panelBorder),

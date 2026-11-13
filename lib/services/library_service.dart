@@ -124,10 +124,14 @@ class LibraryService extends ChangeNotifier {
     File? indexFile,
     ThumbnailService? thumbnails,
     bool autoRescan = true,
+    this.foldersKey = 'libraryFolders',
+    this.indexName = 'library.json',
+    this.excluded,
+    this.extraFiles,
   }) : _autoHash = autoRescan,
        _indexOverride = indexFile,
        thumbnails = thumbnails ?? ThumbnailService() {
-    _folders.addAll(_prefs.getStringList('libraryFolders') ?? const []);
+    _folders.addAll(_prefs.getStringList(foldersKey) ?? const []);
     _loadIndex();
     // An index from before pictures and PDFs were kept does not know about
     // them: look through the folders once more, in the background.
@@ -141,7 +145,21 @@ class LibraryService extends ChangeNotifier {
     }
   }
 
-  static const _kindsKey = 'libraryKindsVersion';
+  /// Preferences key of the folder list, and the index file's name: the
+  /// private library keeps its own of both.
+  final String foldersKey;
+  final String indexName;
+
+  /// Files that must not be listed here (they belong to Private).
+  final bool Function(String path)? excluded;
+
+  /// Single files to list besides the folders' (the private library's
+  /// tagged files).
+  final List<String> Function()? extraFiles;
+
+  String get _kindsKey => foldersKey == 'libraryFolders'
+      ? 'libraryKindsVersion'
+      : '${foldersKey}KindsVersion';
   static const _kindsVersion = 3; // 3: pictures keep their file size
 
   final SharedPreferences _prefs;
@@ -189,11 +207,33 @@ class LibraryService extends ChangeNotifier {
   }
 
   void _setAll(List<LibraryItem> all) {
-    _all = all;
+    _all = excluded == null
+        ? all
+        : [
+            for (final i in all)
+              if (!excluded!(i.path)) i,
+          ];
     _items = [
-      for (final i in all)
+      for (final i in _all)
         if (i.isPlayable) i,
     ];
+  }
+
+  /// Applies [excluded] again after it changed (a file or folder became
+  /// private) and saves the index.
+  Future<void> applyExclusions() async {
+    _setAll(_all);
+    await _saveIndex();
+    notifyListeners();
+  }
+
+  /// Forgets everything (the private library when Private is reset).
+  Future<void> clearAll() async {
+    _folders.clear();
+    await _prefs.remove(foldersKey);
+    _setAll(const []);
+    await _saveIndex();
+    notifyListeners();
   }
 
   // ---- folders ----
@@ -231,7 +271,7 @@ class LibraryService extends ChangeNotifier {
     final d = _norm(dir);
     if (_folders.any((f) => f.toLowerCase() == d.toLowerCase())) return false;
     _folders.add(d);
-    _prefs.setStringList('libraryFolders', _folders);
+    _prefs.setStringList(foldersKey, _folders);
     notifyListeners();
     await scan();
     return true;
@@ -239,11 +279,15 @@ class LibraryService extends ChangeNotifier {
 
   Future<void> removeFolder(String dir) async {
     _folders.remove(dir);
-    _prefs.setStringList('libraryFolders', _folders);
+    _prefs.setStringList(foldersKey, _folders);
     // Keep files that another saved folder still covers.
     _setAll([
       for (final i in _all)
-        if (_folders.any((f) => isUnder(i.path, f))) i,
+        if (_folders.any((f) => isUnder(i.path, f)) ||
+            (extraFiles?.call() ?? const <String>[]).any(
+              (x) => x.toLowerCase() == i.path.toLowerCase(),
+            ))
+          i,
     ]);
     await _saveIndex();
     notifyListeners();
@@ -255,7 +299,7 @@ class LibraryService extends ChangeNotifier {
     if (_indexOverride != null) return _indexOverride;
     final base = Platform.environment['APPDATA'];
     if (base == null) return null;
-    return File('$base\\NSL Media Player\\library.json');
+    return File('$base\\NSL Media Player\\$indexName');
   }
 
   void _loadIndex() {
@@ -301,9 +345,16 @@ class LibraryService extends ChangeNotifier {
         ).list(recursive: true, followLinks: false).handleError((_) {})) {
           if (e is File &&
               isLibraryFile(e.path) &&
+              !(excluded?.call(e.path) ?? false) &&
               seen.add(e.path.toLowerCase())) {
             found.add(e);
           }
+        }
+      }
+      for (final p in extraFiles?.call() ?? const <String>[]) {
+        final f = File(p);
+        if (isLibraryFile(p) && f.existsSync() && seen.add(p.toLowerCase())) {
+          found.add(f);
         }
       }
       scanTotal = found.length;

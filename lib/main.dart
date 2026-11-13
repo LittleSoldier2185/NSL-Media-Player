@@ -10,6 +10,7 @@ import 'services/history_service.dart';
 import 'services/library_service.dart';
 import 'services/mini_ipc.dart';
 import 'services/playlist_service.dart';
+import 'services/private_hub.dart';
 import 'services/settings_service.dart';
 import 'services/sleep_port.dart';
 import 'services/book_service.dart';
@@ -68,7 +69,19 @@ Future<void> main(List<String> args) async {
     miniChild == null,
   );
   // Only the main window rescans: two processes must not write the index.
-  final library = LibraryService(settings.prefs, autoRescan: miniChild == null);
+  // Private mode is the main window's only: the separate mini player just
+  // plays what it is told to.
+  final PrivateHub? hub;
+  final LibraryService library;
+  if (miniChild == null) {
+    final (h, normal) = PrivateHub.create(settings.prefs);
+    hub = h;
+    library = normal;
+    h.attach(controller, history);
+  } else {
+    hub = null;
+    library = LibraryService(settings.prefs, autoRescan: false);
+  }
   final playlists = PlaylistService();
   final books = BookService();
   final photoAlbums = PlaylistService(
@@ -94,6 +107,7 @@ Future<void> main(List<String> args) async {
       playlists: playlists,
       photoAlbums: photoAlbums,
       books: books,
+      hub: hub,
       miniHost: miniHost,
       miniChild: miniChild,
       initialArgs: args,
@@ -102,7 +116,7 @@ Future<void> main(List<String> args) async {
   _applyPlayerSettings(controller, settings, mini: miniChild != null);
   // Media keys belong to the main window only; started after the first frame
   // so a native failure cannot leave a blank window.
-  if (miniChild == null) SmtcService.start(controller, settings);
+  if (miniChild == null) SmtcService.start(controller, settings, hub?.lock);
 }
 
 /// Applies saved player options. Runs after the first frame is on screen and
@@ -143,6 +157,7 @@ class NslApp extends StatelessWidget {
     required this.photoAlbums,
     required this.books,
     required this.initialArgs,
+    this.hub,
     this.miniHost,
     this.miniChild,
   });
@@ -154,6 +169,7 @@ class NslApp extends StatelessWidget {
   final PlaylistService playlists;
   final PlaylistService photoAlbums;
   final BookService books;
+  final PrivateHub? hub;
   final MiniHost? miniHost;
   final MiniChild? miniChild;
   final List<String> initialArgs;
@@ -168,6 +184,15 @@ class NslApp extends StatelessWidget {
         themeMode: settings.themeMode,
         theme: buildTheme(Brightness.light, settings.accent),
         darkTheme: buildTheme(Brightness.dark, settings.accent),
+        // Any click or movement counts as being active (for the idle lock).
+        builder: (context, child) => Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => hub?.lock.activity(),
+          onPointerMove: (_) => hub?.lock.activity(),
+          onPointerHover: (_) => hub?.lock.activity(),
+          onPointerSignal: (_) => hub?.lock.activity(),
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: PlayerPage(
           controller: controller,
           settings: settings,
@@ -176,6 +201,7 @@ class NslApp extends StatelessWidget {
           playlists: playlists,
           photoAlbums: photoAlbums,
           books: books,
+          hub: hub,
           miniHost: miniHost,
           miniChild: miniChild,
           initialArgs: initialArgs,

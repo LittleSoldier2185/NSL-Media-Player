@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:smtc_windows/smtc_windows.dart';
 
 import '../player_controller/player_controller.dart';
+import 'private_service.dart';
 import 'settings_service.dart';
 
 /// Windows media controls (SMTC): the hardware media keys and the volume
@@ -13,7 +14,7 @@ import 'settings_service.dart';
 /// (`controller.remote.active`) the panel is switched off, so it never shows
 /// the paused main window.
 class SmtcService {
-  SmtcService._(this._controller, this._settings, this._smtc) {
+  SmtcService._(this._controller, this._settings, this._smtc, this._private) {
     final pl = _controller.player;
     _subs.add(pl.stream.playing.listen((_) => _sync()));
     _subs.add(pl.stream.duration.listen((_) => _sync()));
@@ -21,12 +22,16 @@ class SmtcService {
     _subs.add(_smtc.buttonPressStream.listen(_onButton));
     _controller.addListener(_sync);
     _settings.addListener(_sync);
+    _private?.addListener(_sync);
     _sync();
   }
 
   final NslPlayerController _controller;
   final AppSettings _settings;
   final SMTCWindows _smtc;
+
+  /// Files that are private show up as "Private" in the media panel.
+  final PrivateService? _private;
   final _subs = <StreamSubscription<Object?>>[];
 
   bool _enabled = true;
@@ -37,8 +42,9 @@ class SmtcService {
   /// media-key support instead of failing.
   static Future<SmtcService?> start(
     NslPlayerController controller,
-    AppSettings settings,
-  ) async {
+    AppSettings settings, [
+    PrivateService? private,
+  ]) async {
     try {
       await SMTCWindows.initialize();
       final smtc = SMTCWindows(
@@ -53,7 +59,7 @@ class SmtcService {
         ),
         enabled: settings.smtcEnabled,
       );
-      return SmtcService._(controller, settings, smtc);
+      return SmtcService._(controller, settings, smtc, private);
     } catch (e, st) {
       debugPrint('Windows media controls are not available: $e\n$st');
       return null;
@@ -88,7 +94,12 @@ class SmtcService {
       }
       if (!want) return;
 
-      final title = _controller.current == null ? null : _controller.title;
+      final private = _private?.isPrivate(_controller.currentPath) ?? false;
+      final title = _controller.current == null
+          ? null
+          : private && (_private?.maskTitles ?? false)
+          ? 'Private'
+          : _controller.title;
       if (title != _shownTitle) {
         _shownTitle = title;
         if (title == null) {
@@ -138,6 +149,7 @@ class SmtcService {
     }
     _controller.removeListener(_sync);
     _settings.removeListener(_sync);
+    _private?.removeListener(_sync);
     await _smtc.dispose();
   }
 }

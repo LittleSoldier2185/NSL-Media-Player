@@ -19,10 +19,12 @@ import '../services/hub_audio.dart';
 import '../services/book_service.dart';
 import '../services/library_service.dart';
 import '../services/playlist_service.dart';
+import '../services/private_hub.dart';
 import 'home_page.dart';
 import 'mini_player.dart';
 import 'music_view.dart';
 import 'now_playing_dock.dart';
+import 'private_page.dart';
 import 'queue_panel.dart';
 import 'settings_page.dart';
 import 'shortcut_guard.dart';
@@ -42,6 +44,7 @@ class PlayerPage extends StatefulWidget {
     required this.photoAlbums,
     required this.books,
     required this.initialArgs,
+    this.hub,
     this.miniHost,
     this.miniChild,
   });
@@ -54,6 +57,9 @@ class PlayerPage extends StatefulWidget {
   final PlaylistService photoAlbums;
   final BookService books;
   final List<String> initialArgs;
+
+  /// Private mode (main window only; null in the mini player process).
+  final PrivateHub? hub;
 
   /// Main window: starts the separate mini player process.
   final MiniHost? miniHost;
@@ -95,7 +101,9 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   bool get _browsingPictures =>
       _home &&
       !_settingsOpen &&
-      (_section == NavDest.photos || _section == NavDest.books);
+      (_section == NavDest.photos ||
+          _section == NavDest.books ||
+          _section == NavDest.private);
 
   /// Opening a file from outside a page (Open file, drop): go to the player,
   /// unless you are looking at pictures or reading and chose to keep browsing.
@@ -156,7 +164,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
             NavDest.photos ||
             NavDest.books ||
             NavDest.playlists ||
-            NavDest.history:
+            NavDest.history ||
+            NavDest.private:
           _settingsOpen = false;
           _home = true;
           _section = d;
@@ -600,6 +609,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   @override
   void onWindowMinimize() {
+    widget.hub?.lock.windowMinimized();
     c.setReducedLoad(true);
     if (widget.settings.autoAudioOnly && c.isVideoFile && !c.audioOnly) {
       _autoAudioOnly = true;
@@ -619,6 +629,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   @override
   void dispose() {
     FocusManager.instance.removeListener(_restoreFocus);
+    widget.hub?.lock.removeListener(_onPrivateChanged);
+    HardwareKeyboard.instance.removeHandler(_onKeyActivity);
     _pageFocus.dispose();
     _resizeDebounce?.cancel();
     for (final sub in _miniSubs) {
@@ -630,6 +642,41 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     super.dispose();
   }
 
+  bool _onKeyActivity(KeyEvent _) {
+    widget.hub?.lock.activity();
+    return false;
+  }
+
+  /// The title shown in the title bar: "Private" instead of the name of a
+  /// private file (if that is switched on).
+  String get _shownTitle {
+    final lock = widget.hub?.lock;
+    if (lock != null && lock.maskTitles && lock.isPrivate(c.currentPath)) {
+      return 'Private';
+    }
+    return c.title;
+  }
+
+  bool _wasUnlocked = false;
+
+  /// Private just locked: leave its page and close its viewers and dialogs.
+  void _onPrivateChanged() {
+    final lock = widget.hub!.lock;
+    final nowUnlocked = lock.unlocked;
+    if (_wasUnlocked && !nowUnlocked && mounted) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      if (_section == NavDest.private) {
+        setState(() {
+          _home = true;
+          _section = NavDest.home;
+          _settingsOpen = false;
+        });
+      }
+    }
+    _wasUnlocked = nowUnlocked;
+    if (mounted) setState(() {}); // the sidebar entry / title may change
+  }
+
   @override
   void initState() {
     super.initState();
@@ -637,6 +684,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     c.addListener(_onControllerChanged);
     widget.miniHost?.addListener(_onMiniHost);
     FocusManager.instance.addListener(_restoreFocus);
+    widget.hub?.lock.addListener(_onPrivateChanged);
+    HardwareKeyboard.instance.addHandler(_onKeyActivity);
     if (widget.miniChild != null) {
       // The separate mini player: play what the main window handed over.
       unawaited(_bootMiniProcess());
@@ -724,6 +773,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         _navigate(NavDest.home);
       case 'sidebar':
         _toggleSidebarHidden();
+      case 'private':
+        if (widget.hub != null) _navigate(NavDest.private);
+      case 'lockprivate':
+        widget.hub?.lock.lock();
       case 'next':
         c.next();
       case 'prev':
@@ -740,6 +793,23 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
         shortcuts: {
           for (final (a, combo) in widget.settings.shortcuts.allCombos())
             combo.activator: _NslIntent(a.id, plain: combo.plain),
+          // Private mode: open it / lock it now.
+          const SingleActivator(
+            LogicalKeyboardKey.keyP,
+            control: true,
+            shift: true,
+          ): const _NslIntent(
+            'private',
+            plain: false,
+          ),
+          const SingleActivator(
+            LogicalKeyboardKey.keyL,
+            control: true,
+            shift: true,
+          ): const _NslIntent(
+            'lockprivate',
+            plain: false,
+          ),
         },
         child: child!,
       ),
@@ -803,7 +873,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                           ListenableBuilder(
                             listenable: c,
                             builder: (_, _) => NslTitleBar(
-                              title: c.title,
+                              title: _shownTitle,
                               onMenu: _toggleSidebarHidden,
                               onLogo: () => _navigate(NavDest.home),
                             ),
@@ -823,6 +893,10 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                         ? SidebarMode.rail
                                         : _sidebar;
                                     return AppSidebar(
+                                      showPrivate:
+                                          widget.hub != null &&
+                                          (!widget.hub!.lock.hideEntry ||
+                                              _section == NavDest.private),
                                       mode: mode,
                                       current: _dest,
                                       onSelect: _navigate,
@@ -840,6 +914,14 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
                                         onClose: () => setState(
                                           () => _settingsOpen = false,
                                         ),
+                                      )
+                                    : _home &&
+                                          _section == NavDest.private &&
+                                          widget.hub != null
+                                    ? PrivatePage(
+                                        hub: widget.hub!,
+                                        controller: c,
+                                        onOpenPlayer: _showPlayer,
                                       )
                                     : _home
                                     ? HomePage(
