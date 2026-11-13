@@ -47,6 +47,7 @@ dependencies:
   exif: ^3.3.0
   crypto: ^3.0.6
   pdfrx: ^2.12.1
+  ffi: ^2.1.0
   pasteboard: ^0.6.0
 
 dev_dependencies:

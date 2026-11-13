@@ -1,5 +1,7 @@
+import 'dart:ffi';
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 
@@ -36,9 +38,43 @@ class FileLocator {
   final bool Function(String path) _fileExists;
   final bool Function(String path) _dirExists;
 
+  /// Starts explorer.exe through ShellExecute with the command line exactly as
+  /// given: `Process.run` re-quotes arguments in a way Explorer misreads when
+  /// the path has spaces or Thai letters, and it opens Documents instead.
   static Future<void> _runExplorer(List<String> args) async {
-    // Explorer returns exit code 1 even when it worked, so ignore the code.
-    await Process.run('explorer', args);
+    final line = args.length == 2 && args[0] == '/select,'
+        ? '/select,"${args[1]}"'
+        : args.map((a) => '"$a"').join(' ');
+    final shell = DynamicLibrary.open('shell32.dll');
+    final shellExecute = shell
+        .lookupFunction<
+          IntPtr Function(
+            IntPtr,
+            Pointer<Utf16>,
+            Pointer<Utf16>,
+            Pointer<Utf16>,
+            Pointer<Utf16>,
+            Int32,
+          ),
+          int Function(
+            int,
+            Pointer<Utf16>,
+            Pointer<Utf16>,
+            Pointer<Utf16>,
+            Pointer<Utf16>,
+            int,
+          )
+        >('ShellExecuteW');
+    final verb = 'open'.toNativeUtf16();
+    final exe = 'explorer.exe'.toNativeUtf16();
+    final params = line.toNativeUtf16();
+    try {
+      shellExecute(0, verb, exe, params, nullptr, 1);
+    } finally {
+      calloc.free(verb);
+      calloc.free(exe);
+      calloc.free(params);
+    }
   }
 
   static Future<void> _setClipboard(String text) =>
