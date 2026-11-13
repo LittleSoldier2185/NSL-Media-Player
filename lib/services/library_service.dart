@@ -227,6 +227,21 @@ class LibraryService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reads one file's tags again (after they were edited) and refreshes its
+  /// row without scanning the whole library.
+  Future<void> reload(String path) async {
+    final f = File(path);
+    if (!f.existsSync()) return;
+    final modified = (await f.lastModified()).millisecondsSinceEpoch;
+    final item = await _readItem(f, modified);
+    _setAll([
+      for (final i in _all)
+        if (i.path == path) item else i,
+    ]);
+    await _saveIndex();
+    notifyListeners();
+  }
+
   /// Forgets everything (the private library when Private is reset).
   Future<void> clearAll() async {
     _folders.clear();

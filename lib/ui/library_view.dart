@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
 import '../services/library_service.dart';
+import '../services/tag_editor.dart';
 import '../services/playlist_service.dart';
 import 'controls.dart';
 import 'library_items.dart';
 import 'playlist_dialogs.dart';
+import 'tag_dialog.dart';
 import 'theme.dart';
 
 /// The Library section: scanned folders with search, filter and sorting.
@@ -61,6 +63,16 @@ class _LibraryViewState extends State<LibraryView> {
         'to the queue.',
       );
     }
+  }
+
+  /// "Edit info": writes the new tags into the files; the rows refresh.
+  Future<void> _editInfo(List<String> paths) async {
+    final changed = await showTagEditor(
+      context,
+      paths: paths,
+      library: widget.library,
+    );
+    if (changed && mounted) _toast('Saved.');
   }
 
   Future<void> _toPlaylist(List<String> paths) =>
@@ -315,6 +327,7 @@ class _LibraryViewState extends State<LibraryView> {
       onTap: () => _selecting ? _toggle(path) : _play(shown, i),
       onAddToQueue: () => _enqueue([path]),
       onAddToPlaylist: () => _toPlaylist([path]),
+      onEdit: canEditTags(path) ? () => _editInfo([path]) : null,
       onSelect: () {
         setState(() => _selecting = true);
         _toggle(path);
@@ -383,6 +396,16 @@ class _LibraryViewState extends State<LibraryView> {
                 : null,
             icon: const Icon(Icons.queue_music, size: 18),
             label: const Text('Add to queue'),
+          ),
+          OutlinedButton.icon(
+            onPressed: picked.any(canEditTags)
+                ? () async {
+                    await _editInfo(picked);
+                    if (mounted) _setSelecting(false);
+                  }
+                : null,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Edit info'),
           ),
           TextButton(
             onPressed: () => _setSelecting(false),

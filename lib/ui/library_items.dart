@@ -15,6 +15,7 @@ class ItemActions {
     required this.onAddToQueue,
     required this.onAddToPlaylist,
     required this.onSelect,
+    this.onEdit,
   });
 
   final bool playing;
@@ -24,6 +25,9 @@ class ItemActions {
   final VoidCallback onAddToQueue;
   final VoidCallback onAddToPlaylist;
   final VoidCallback onSelect;
+
+  /// Opens "Edit info" (null when the file's tags cannot be edited).
+  final VoidCallback? onEdit;
 }
 
 String _duration(int ms) {
@@ -56,12 +60,15 @@ class _ItemMenu extends StatelessWidget {
       onSelected: (v) => switch (v) {
         'queue' => actions.onAddToQueue(),
         'playlist' => actions.onAddToPlaylist(),
+        'edit' => actions.onEdit?.call(),
         _ => actions.onSelect(),
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'queue', child: Text('Add to queue')),
-        PopupMenuItem(value: 'playlist', child: Text('Add to playlist…')),
-        PopupMenuItem(value: 'select', child: Text('Select…')),
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'queue', child: Text('Add to queue')),
+        const PopupMenuItem(value: 'playlist', child: Text('Add to playlist…')),
+        if (actions.onEdit != null)
+          const PopupMenuItem(value: 'edit', child: Text('Edit info…')),
+        const PopupMenuItem(value: 'select', child: Text('Select…')),
       ],
     );
   }
