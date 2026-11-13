@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../player_controller/player_controller.dart';
 import 'book_service.dart';
+import 'heic_converter.dart';
 import 'history_service.dart';
 import 'library_service.dart';
 import 'playlist_service.dart';
@@ -98,10 +99,16 @@ class PrivateHub {
   /// locking stops them and drops their thumbnails.
   void attach(NslPlayerController controller, HistoryService history) {
     controller.isPrivate = lock.isPrivate;
+    controller.maskTitle = (p) => lock.maskTitles && lock.isPrivate(p);
     history.isPrivate = lock.isPrivate;
     lock.onLocked = () {
       controller.dropPrivate();
       library.thumbnails.clearCache();
+      // Converted copies of private HEIC pictures must not stay in the cache
+      // shared with ordinary pictures.
+      for (final i in library.images) {
+        HeicConverter.instance.forget(i.path);
+      }
     };
   }
 

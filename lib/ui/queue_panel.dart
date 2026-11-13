@@ -23,6 +23,29 @@ class QueuePanel extends StatelessWidget {
   final VoidCallback onAddFiles;
   final VoidCallback onAddFolder;
 
+  /// Saves the queue as a playlist, leaving private files out: a normal
+  /// playlist would keep their names after Private is locked.
+  Future<void> _saveQueue(BuildContext context) async {
+    final hide = controller.isPrivate;
+    final all = [for (final q in controller.queue) q.path];
+    final paths = [
+      for (final p in all)
+        if (hide == null || !hide(p)) p,
+    ];
+    final left = all.length - paths.length;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    await saveAsPlaylist(context, playlists, paths);
+    if (left > 0) {
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            '$left private file${left == 1 ? ' was' : 's were'} left out.',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.pal;
@@ -138,9 +161,7 @@ class QueuePanel extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: controller.queue.isEmpty
                             ? null
-                            : () => saveAsPlaylist(context, playlists, [
-                                for (final q in controller.queue) q.path,
-                              ]),
+                            : () => _saveQueue(context),
                         icon: const Icon(Icons.playlist_add, size: 18),
                         label: const Text('Save as playlist'),
                       ),

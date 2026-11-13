@@ -391,6 +391,29 @@ void main() {
     });
   });
 
+  group('hiding titles in the mini player', () {
+    bool isPrivate(String p) => p.toLowerCase().startsWith('priv');
+
+    test('the first queue and later opens say which files to mask', () async {
+      port.snapshot['queue'] = ['a.mp3', 'Priv1.mp4'];
+      host.maskTest = isPrivate;
+      await open();
+      expect(mini.child!.init['masked'], ['priv1.mp4']);
+      await host.open(['PRIV2.mp3', 'b.mp3']);
+      await host.add(['priv3.mp3']);
+      await settle();
+      final open2 = mini.received.firstWhere((m) => m['cmd'] == 'open');
+      expect(open2['masked'], ['priv2.mp3']);
+      final add = mini.received.firstWhere((m) => m['cmd'] == 'add');
+      expect(add['masked'], ['priv3.mp3']);
+    });
+
+    test('with no test set nothing is masked', () async {
+      await open();
+      expect(mini.child!.init['masked'], isEmpty);
+    });
+  });
+
   group('closing for Private', () {
     bool isPrivate(String p) => p.startsWith('priv');
 

@@ -175,6 +175,15 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
   /// main window opened or added in it). Used to tell if it holds private files.
   final Set<String> _given = {};
 
+  /// Tells which files should show "Private" instead of their name in the mini
+  /// player (set by the app; the mini process knows nothing about Private).
+  bool Function(String path)? maskTest;
+
+  List<String> _maskedOf(Iterable<String> paths) => [
+    for (final p in paths)
+      if (maskTest?.call(p) ?? false) p.toLowerCase(),
+  ];
+
   /// How the last mini player session ended.
   MiniReturn lastReturn = MiniReturn.none;
 
@@ -234,7 +243,7 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
         if (m['evt'] == 'hello' && m['token'] == _token && _chan == null) {
           greeted = true;
           _chan = chan;
-          chan.send({'cmd': 'init', ..._snapshot});
+          chan.send({'cmd': 'init', ..._snapshot, 'masked': _maskedOf(_given)});
           if (!hello.isCompleted) hello.complete();
         } else {
           chan.close();
@@ -311,6 +320,7 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
     _send({
       'cmd': 'open',
       'paths': paths,
+      'masked': _maskedOf(paths),
       'start': start,
       if (at != null) 'posMs': at.inMilliseconds,
     });
@@ -319,7 +329,7 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
   @override
   Future<void> add(List<String> paths) async {
     _given.addAll(paths);
-    _send({'cmd': 'add', 'paths': paths});
+    _send({'cmd': 'add', 'paths': paths, 'masked': _maskedOf(paths)});
   }
 
   /// Closes the mini player, for good, when it holds a file for which [test]

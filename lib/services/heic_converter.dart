@@ -43,12 +43,22 @@ class HeicConverter {
     final d = _dir;
     if (d == null) return null;
     try {
-      final modified = File(
-        path,
-      ).statSync().modified.millisecondsSinceEpoch;
+      final modified = File(path).statSync().modified.millisecondsSinceEpoch;
       return File('${d.path}\\${ThumbnailService.keyFor(path, modified)}.jpg');
     } on Object {
       return null;
+    }
+  }
+
+  /// Deletes the converted copy of [path], if there is one (used when a
+  /// private picture is locked away).
+  void forget(String path) {
+    if (!isHeic(path)) return;
+    try {
+      final t = _target(path);
+      if (t != null && t.existsSync()) t.deleteSync();
+    } on Object {
+      // a leftover cache file is harmless
     }
   }
 

@@ -52,6 +52,31 @@ void main() {
       expect(src.readAsBytesSync(), [1, 2, 3]);
     });
 
+    test('forget deletes the converted copy and leaves the original', () async {
+      final src = File('${tmp.path}\\q.heic')..writeAsBytesSync([1, 2, 3]);
+      final other = File('${tmp.path}\\r.heic')..writeAsBytesSync([4]);
+      final c = HeicConverter(
+        dir: Directory('${tmp.path}\\heic'),
+        run: (s, d) async {
+          File(d).writeAsBytesSync([0xFF, 0xD8, 0xFF]);
+          return true;
+        },
+      );
+      final copy = await c.viewable(src.path);
+      final otherCopy = await c.viewable(other.path);
+      expect(File(copy!).existsSync(), isTrue);
+      c.forget(src.path);
+      expect(File(copy).existsSync(), isFalse);
+      expect(c.cachedPath(src.path), isNull);
+      expect(
+        File(otherCopy!).existsSync(),
+        isTrue,
+      ); // another picture's copy stays
+      expect(src.existsSync(), isTrue);
+      c.forget('C:\\a\\b.jpg'); // not a HEIC: nothing to do
+      c.forget(src.path); // twice: no error
+    });
+
     test('a failed conversion gives null and leaves nothing behind', () async {
       final src = File('${tmp.path}\\bad.heic')..writeAsBytesSync([1]);
       final c = HeicConverter(
@@ -111,7 +136,10 @@ void main() {
       // Only the candidates with a twin of the same size were read.
       final hashed = lib.images.where((i) => i.hash != null).length;
       expect(hashed, 3);
-      expect(lib.images.firstWhere((i) => i.title == 'd_unique.jpg').hash, isNull);
+      expect(
+        lib.images.firstWhere((i) => i.title == 'd_unique.jpg').hash,
+        isNull,
+      );
     });
 
     test('the oldest copy is kept; the others are hidden on request', () async {
@@ -120,18 +148,8 @@ void main() {
       final lib = await libraryWith([a, b]);
       // a is older.
       lib.setItemsForTest([
-        LibraryItem(
-          path: a.path,
-          title: 'a',
-          modified: 1000,
-          size: 3,
-        ),
-        LibraryItem(
-          path: b.path,
-          title: 'b',
-          modified: 2000,
-          size: 3,
-        ),
+        LibraryItem(path: a.path, title: 'a', modified: 1000, size: 3),
+        LibraryItem(path: b.path, title: 'b', modified: 2000, size: 3),
       ]);
       await lib.findDuplicates();
       expect(lib.duplicatePaths, {b.path.toLowerCase()});
@@ -151,9 +169,7 @@ void main() {
       final json = File('${tmp.path}\\index.json').readAsStringSync();
       expect(json, contains('"h"'));
       expect(json, contains('"z"'));
-      final back = LibraryItem.fromJson(
-        lib.images.first.toJson(),
-      );
+      final back = LibraryItem.fromJson(lib.images.first.toJson());
       expect(back!.size, 2);
       expect(back.hash, lib.images.first.hash);
     });

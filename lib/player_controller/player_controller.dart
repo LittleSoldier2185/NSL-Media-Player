@@ -134,7 +134,18 @@ class NslPlayerController extends ChangeNotifier {
   QueueItem? get current =>
       index >= 0 && index < queue.length ? queue[index] : null;
   String? get currentPath => current?.path;
-  String get title => current?.title ?? '';
+
+  /// Shows "Private" instead of the name of a file this says is private
+  /// (set by the app). Keeps private titles off every title the player shows.
+  bool Function(String path)? maskTitle;
+
+  String get title {
+    final cur = current;
+    if (cur == null) return '';
+    final mask = maskTitle;
+    return mask != null && mask(cur.path) ? 'Private' : cur.title;
+  }
+
   bool get isVideoFile => current?.isVideo ?? false;
   double get speed => speeds[_speedIndex];
 

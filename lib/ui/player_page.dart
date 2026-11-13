@@ -349,6 +349,15 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
 
   final _tracker = MiniSessionTracker();
   final List<StreamSubscription<Object?>> _miniSubs = [];
+
+  /// Files the main window says to show as "Private" in this mini player.
+  final Set<String> _maskedPaths = {};
+
+  void _takeMasked(Object? list) {
+    if (list is! List) return;
+    _maskedPaths.addAll([for (final p in list) '$p'.toLowerCase()]);
+  }
+
   bool _miniFinishing = false;
 
   /// Starts this process as the mini player: load what the main window was
@@ -356,6 +365,8 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
   Future<void> _bootMiniProcess() async {
     final child = widget.miniChild!;
     final init = child.init;
+    _takeMasked(init['masked']);
+    c.maskTitle = (p) => _maskedPaths.contains(p.toLowerCase());
     // Closing the window must report back to the main window first.
     await windowManager.setPreventClose(true);
     final paths = [
@@ -416,6 +427,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
     ];
     switch (m['cmd']) {
       case 'open':
+        _takeMasked(m['masked']);
         final list = paths();
         final at = m['posMs'];
         if (at is int && list.length == 1) {
@@ -424,6 +436,7 @@ class _PlayerPageState extends State<PlayerPage> with WindowListener {
           c.openPaths(list, start: m['start'] is int ? m['start'] as int : 0);
         }
       case 'add':
+        _takeMasked(m['masked']);
         c.addPaths(paths());
       case 'toggle':
         c.togglePlay();

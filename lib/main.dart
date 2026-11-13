@@ -93,6 +93,7 @@ Future<void> main(List<String> args) async {
       : null;
   controller.remote = miniHost;
   if (hub != null && miniHost != null) {
+    miniHost.maskTest = (p) => hub!.lock.maskTitles && hub.lock.isPrivate(p);
     // Locking Private also closes a mini player that holds private files
     // (before the main player drops them, so nothing is forwarded to it).
     final dropFromMain = hub.lock.onLocked;
