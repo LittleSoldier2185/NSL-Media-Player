@@ -248,10 +248,10 @@ class _BookReaderPageState extends State<BookReaderPage> {
         onViewerReady: _ready,
         onPageChanged: _pageChanged,
         pagePaintCallbacks: [_searcher.pageTextMatchPaintCallback],
-        onDocumentChanged: (doc) {
-          if (doc == null && mounted && _pages == 0) {
-            setState(() => _failed = true);
-          }
+        // Only a finished load that failed means the PDF cannot be opened
+        // (onDocumentChanged(null) also fires while the file is still loading).
+        onDocumentLoadFinished: (ref, ok) {
+          if (!ok && mounted) setState(() => _failed = true);
         },
       ),
     );
