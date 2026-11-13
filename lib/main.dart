@@ -92,6 +92,15 @@ Future<void> main(List<String> args) async {
       ? MiniHost(AppMiniPort(controller, history, settings))
       : null;
   controller.remote = miniHost;
+  if (hub != null && miniHost != null) {
+    // Locking Private also closes a mini player that holds private files
+    // (before the main player drops them, so nothing is forwarded to it).
+    final dropFromMain = hub.lock.onLocked;
+    hub.lock.onLocked = () {
+      miniHost.closeIfHolds(hub!.lock.isPrivate);
+      dropFromMain?.call();
+    };
+  }
   if (miniChild == null) {
     controller.sleep = SleepTimer(
       ControllerSleepPort(controller),

@@ -171,6 +171,10 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
   String _token = '';
   Json _snapshot = {};
 
+  /// Every path the mini player was given (its first queue, then what the
+  /// main window opened or added in it). Used to tell if it holds private files.
+  final Set<String> _given = {};
+
   /// How the last mini player session ended.
   MiniReturn lastReturn = MiniReturn.none;
 
@@ -190,6 +194,11 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       _server = server;
       _snapshot = _port.pauseAndSnapshot();
+      _given
+        ..clear()
+        ..addAll([
+          for (final p in (_snapshot['queue'] as List?) ?? const []) '$p',
+        ]);
       server.listen((socket) => _accept(socket, hello));
       final proc = await _spawner([
         '--mini',
@@ -282,6 +291,7 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
     _server = null;
     _proc = null;
     _active = false;
+    _given.clear();
     if (chan != null) unawaited(chan.close());
     if (server != null) unawaited(server.close());
     if (kill) proc?.kill();
@@ -294,17 +304,34 @@ class MiniHost extends ChangeNotifier implements RemotePlayback {
   // ---- RemotePlayback: what the main window forwards ----
 
   @override
-  Future<void> open(List<String> paths, {int start = 0, Duration? at}) async =>
-      _send({
-        'cmd': 'open',
-        'paths': paths,
-        'start': start,
-        if (at != null) 'posMs': at.inMilliseconds,
-      });
+  Future<void> open(List<String> paths, {int start = 0, Duration? at}) async {
+    _given
+      ..clear()
+      ..addAll(paths);
+    _send({
+      'cmd': 'open',
+      'paths': paths,
+      'start': start,
+      if (at != null) 'posMs': at.inMilliseconds,
+    });
+  }
 
   @override
-  Future<void> add(List<String> paths) async =>
-      _send({'cmd': 'add', 'paths': paths});
+  Future<void> add(List<String> paths) async {
+    _given.addAll(paths);
+    _send({'cmd': 'add', 'paths': paths});
+  }
+
+  /// Closes the mini player, for good, when it holds a file for which [test]
+  /// is true (a private one). Its queue is thrown away, not handed back to
+  /// the main window, and nothing it watched is recorded. A mini player with
+  /// only ordinary files is left alone. Returns true when it was closed.
+  bool closeIfHolds(bool Function(String path) test) {
+    if (!_active || !_given.any(test)) return false;
+    lastReturn = MiniReturn.close;
+    _teardown(kill: true);
+    return true;
+  }
 
   @override
   void toggle() => _send({'cmd': 'toggle'});

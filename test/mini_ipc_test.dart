@@ -390,6 +390,51 @@ void main() {
       expect(t.results(), isEmpty);
     });
   });
+
+  group('closing for Private', () {
+    bool isPrivate(String p) => p.startsWith('priv');
+
+    test(
+      'a mini player holding a private file is closed, not handed back',
+      () async {
+        port.snapshot['queue'] = ['a.mp3', 'priv1.mp4'];
+        await open();
+        expect(host.closeIfHolds(isPrivate), isTrue);
+        await settle();
+        expect(host.active, isFalse);
+        expect(mini.killed, isTrue);
+        expect(host.lastReturn, MiniReturn.close);
+        // Its queue is thrown away: nothing is adopted or recorded.
+        expect(port.calls, isNot(contains('adopt')));
+        expect(port.calls, isNot(contains('history')));
+      },
+    );
+
+    test('a private file opened in it later counts too', () async {
+      await open();
+      expect(host.closeIfHolds(isPrivate), isFalse);
+      await host.open(['priv2.mp3']);
+      expect(host.closeIfHolds(isPrivate), isTrue);
+      expect(host.active, isFalse);
+    });
+
+    test('a private file added to it counts', () async {
+      await open();
+      await host.add(['priv3.mp3']);
+      expect(host.closeIfHolds(isPrivate), isTrue);
+    });
+
+    test('a mini player with only ordinary files is left playing', () async {
+      await open();
+      expect(host.closeIfHolds(isPrivate), isFalse);
+      expect(host.active, isTrue);
+      expect(mini.killed, isFalse);
+    });
+
+    test('nothing to close when no mini player is open', () {
+      expect(host.closeIfHolds(isPrivate), isFalse);
+    });
+  });
 }
 
 class _SpyPort extends FakePort {
