@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
+import 'package:crypto/crypto.dart';
 import 'package:exif/exif.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,8 @@ class LibraryItem {
     this.durationMs = 0,
     required this.modified,
     this.taken,
+    this.size,
+    this.hash,
   });
 
   final String path;
@@ -34,6 +37,13 @@ class LibraryItem {
 
   /// When a picture was taken (ms since epoch, from its EXIF data), or null.
   final int? taken;
+
+  /// File size in bytes (pictures only; null in an index from before).
+  final int? size;
+
+  /// SHA-1 of a picture's contents, filled in the background for pictures
+  /// that share their size with another one (see [LibraryService.duplicates]).
+  String? hash;
 
   /// When it was taken, or else when the file was last changed.
   int get when => taken ?? modified;
@@ -55,6 +65,8 @@ class LibraryItem {
     'd': durationMs,
     'm': modified,
     if (taken != null) 'k': taken,
+    if (size != null) 'z': size,
+    if (hash != null) 'h': hash,
   };
 
   static LibraryItem? fromJson(Object? j) {
@@ -69,6 +81,8 @@ class LibraryItem {
       durationMs: j['d'] is int ? j['d'] as int : 0,
       modified: m,
       taken: j['k'] is int ? j['k'] as int : null,
+      size: j['z'] is int ? j['z'] as int : null,
+      hash: j['h'] is String ? j['h'] as String : null,
     );
   }
 }
@@ -110,7 +124,8 @@ class LibraryService extends ChangeNotifier {
     File? indexFile,
     ThumbnailService? thumbnails,
     bool autoRescan = true,
-  }) : _indexOverride = indexFile,
+  }) : _autoHash = autoRescan,
+       _indexOverride = indexFile,
        thumbnails = thumbnails ?? ThumbnailService() {
     _folders.addAll(_prefs.getStringList('libraryFolders') ?? const []);
     _loadIndex();
@@ -120,14 +135,18 @@ class LibraryService extends ChangeNotifier {
         _folders.isNotEmpty &&
         (_prefs.getInt(_kindsKey) ?? 0) < _kindsVersion) {
       scheduleMicrotask(scan);
+    } else if (autoRescan) {
+      // Picks up the duplicates found in an earlier run from the saved hashes.
+      scheduleMicrotask(findDuplicates);
     }
   }
 
   static const _kindsKey = 'libraryKindsVersion';
-  static const _kindsVersion = 2;
+  static const _kindsVersion = 3; // 3: pictures keep their file size
 
   final SharedPreferences _prefs;
   final File? _indexOverride;
+  final bool _autoHash;
 
   /// Preview pictures (cover art / video frames) for the files in the library.
   final ThumbnailService thumbnails;
@@ -295,7 +314,9 @@ class LibraryService extends ChangeNotifier {
         final modified = (await f.lastModified()).millisecondsSinceEpoch;
         final old = known[f.path];
         result.add(
-          old != null && old.modified == modified
+          old != null &&
+                  old.modified == modified &&
+                  (old.kind != MediaKind.image || old.size != null)
               ? old
               : await _readItem(f, modified),
         );
@@ -313,6 +334,7 @@ class LibraryService extends ChangeNotifier {
       scanning = false;
       notifyListeners();
     }
+    if (_autoHash) await findDuplicates();
   }
 
   Future<LibraryItem> _readItem(File f, int modified) async {
@@ -322,6 +344,7 @@ class LibraryService extends ChangeNotifier {
       title: _stripExt(fileNameOf(f.path)),
       modified: modified,
       taken: (await readTakenDate(f))?.millisecondsSinceEpoch,
+      size: await f.length(),
     );
   }
 
@@ -385,6 +408,113 @@ class LibraryService extends ChangeNotifier {
   static String _stripExt(String name) {
     final i = name.lastIndexOf('.');
     return i > 0 ? name.substring(0, i) : name;
+  }
+
+  // ---- duplicate pictures ----
+
+  /// Hide the extra copies of a picture on the Photos timeline.
+  bool get hideDuplicates => _prefs.getBool('photosHideDuplicates') ?? true;
+
+  set hideDuplicates(bool v) {
+    _prefs.setBool('photosHideDuplicates', v);
+    notifyListeners();
+  }
+
+  /// Groups of pictures with identical contents (2 or more each). In each
+  /// group the first is the one kept: the oldest by date taken, then by path.
+  List<List<LibraryItem>> get duplicates => _duplicates;
+  List<List<LibraryItem>> _duplicates = const [];
+
+  /// Paths (lower case) of the extra copies: every picture of a group except
+  /// the one kept. Nothing is deleted; they are only hidden when asked.
+  Set<String> get duplicatePaths => _duplicatePaths;
+  Set<String> _duplicatePaths = const {};
+
+  int get duplicateCount => _duplicatePaths.length;
+
+  /// Pictures on the timeline, honouring [hideDuplicates].
+  List<LibraryItem> get visibleImages {
+    final all = images;
+    if (!hideDuplicates || _duplicatePaths.isEmpty) return all;
+    return [
+      for (final i in all)
+        if (!_duplicatePaths.contains(i.path.toLowerCase())) i,
+    ];
+  }
+
+  bool _hashing = false;
+
+  /// True while pictures are being compared in the background.
+  bool get hashing => _hashing;
+
+  /// Finds identical pictures. Only files that share their size with another
+  /// picture are read, so a library of unique photos costs nothing.
+  Future<void> findDuplicates() async {
+    if (_hashing) return;
+    _hashing = true;
+    try {
+      final bySize = <int, List<LibraryItem>>{};
+      for (final i in _all) {
+        final z = i.size;
+        if (i.kind == MediaKind.image && z != null && z > 0) {
+          bySize.putIfAbsent(z, () => []).add(i);
+        }
+      }
+      var changed = false;
+      final candidates = [
+        for (final g in bySize.values)
+          if (g.length > 1) g,
+      ];
+      for (final group in candidates) {
+        for (final i in group) {
+          if (i.hash != null) continue;
+          i.hash = await hashFile(File(i.path));
+          if (i.hash != null) changed = true;
+        }
+      }
+      if (changed) await _saveIndex();
+      _applyDuplicates(candidates);
+    } finally {
+      _hashing = false;
+    }
+  }
+
+  void _applyDuplicates(Iterable<List<LibraryItem>> sameSize) {
+    final byHash = <String, List<LibraryItem>>{};
+    for (final g in sameSize) {
+      for (final i in g) {
+        final h = i.hash;
+        if (h != null) byHash.putIfAbsent('${i.size}|$h', () => []).add(i);
+      }
+    }
+    final groups = <List<LibraryItem>>[];
+    final extra = <String>{};
+    for (final g in byHash.values) {
+      if (g.length < 2) continue;
+      g.sort((a, b) {
+        final c = a.when.compareTo(b.when);
+        return c != 0
+            ? c
+            : a.path.toLowerCase().compareTo(b.path.toLowerCase());
+      });
+      groups.add(g);
+      for (final i in g.skip(1)) {
+        extra.add(i.path.toLowerCase());
+      }
+    }
+    groups.sort((a, b) => b.length.compareTo(a.length));
+    _duplicates = groups;
+    _duplicatePaths = extra;
+    notifyListeners();
+  }
+
+  /// SHA-1 of a file's contents, or null when it cannot be read.
+  static Future<String?> hashFile(File f) async {
+    try {
+      return (await sha1.bind(f.openRead()).first).toString();
+    } on Object {
+      return null;
+    }
   }
 
   // ---- query ----

@@ -4,11 +4,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
+import '../services/heic_converter.dart';
 import '../services/library_service.dart';
 import '../services/media_types.dart';
 import '../services/playlist_service.dart';
+import '../services/thumbnail_service.dart';
 import 'photo_common.dart';
 import 'photo_viewer.dart';
+import 'library_thumb.dart';
 import 'theme.dart';
 
 export 'photo_common.dart'
@@ -70,7 +73,7 @@ class _PhotosViewState extends State<PhotosView> {
 
   List<LibraryItem> _timelineItems() {
     final q = _search.text.trim().toLowerCase();
-    final all = widget.library.images;
+    final all = widget.library.visibleImages;
     if (q.isEmpty) return all;
     return [
       for (final i in all)
@@ -264,7 +267,7 @@ class _PhotosViewState extends State<PhotosView> {
     final count = inDetail
         ? shown.length
         : _tab == PhotoTab.timeline
-        ? lib.imageCount
+        ? lib.visibleImages.length
         : 0;
     final canPlay = _showsGrid && shownOrTimeline(shown).isNotEmpty;
 
@@ -311,6 +314,22 @@ class _PhotosViewState extends State<PhotosView> {
               ),
             ),
           ],
+        ),
+      if (!inDetail && _tab == PhotoTab.timeline && lib.duplicateCount > 0)
+        Tooltip(
+          message: 'Identical copies of a picture. Nothing is deleted.',
+          child: OutlinedButton.icon(
+            onPressed: () => lib.hideDuplicates = !lib.hideDuplicates,
+            icon: Icon(
+              lib.hideDuplicates ? Icons.visibility_off : Icons.content_copy,
+              size: 18,
+            ),
+            label: Text(
+              lib.hideDuplicates
+                  ? 'Hiding ${lib.duplicateCount} duplicates'
+                  : 'Show only one of each (${lib.duplicateCount})',
+            ),
+          ),
         ),
       if (canPlay)
         OutlinedButton.icon(
@@ -490,6 +509,7 @@ class _PhotosViewState extends State<PhotosView> {
     final item = list[i];
     return _Tile(
       item: item,
+      thumbnails: widget.library.thumbnails,
       cacheWidth: cacheWidth,
       selecting: _selecting,
       selected: _selected.contains(item.path),
@@ -568,6 +588,7 @@ class _PhotosViewState extends State<PhotosView> {
                 final item = d.items[i];
                 return _Tile(
                   item: item,
+                  thumbnails: widget.library.thumbnails,
                   cacheWidth: cw,
                   selecting: _selecting,
                   selected: _selected.contains(item.path),
@@ -609,6 +630,7 @@ class _PhotosViewState extends State<PhotosView> {
                   ? '1 photo'
                   : '${a.paths.length} photos',
               covers: items.take(3).toList(),
+              thumbnails: widget.library.thumbnails,
               onTap: () => setState(() => _albumId = a.id),
             );
           }, childCount: albums.length),
@@ -645,6 +667,7 @@ class _PhotosViewState extends State<PhotosView> {
                   ? '1 photo'
                   : '${f.items.length} photos',
               covers: f.items.take(3).toList(),
+              thumbnails: widget.library.thumbnails,
               onTap: () => setState(() => _folderDir = f.dir),
             );
           }, childCount: folders.length),
@@ -726,7 +749,26 @@ class _Message extends StatelessWidget {
   );
 }
 
-Widget _thumb(String path, int cacheWidth, NslPalette p) => ColoredBox(
+/// A picture tile. Small tiles use the cached 256 px thumbnail (fast to scroll,\n/// and the only way to show HEIC); big ones decode the original.
+Widget _thumb(
+  LibraryItem item,
+  int cacheWidth,
+  ThumbnailService thumbs,
+  NslPalette p,
+) {
+  if (cacheWidth <= 300 || HeicConverter.isHeic(item.path)) {
+    return PathThumb(
+      path: item.path,
+      modified: item.modified == 0 ? null : item.modified,
+      thumbnails: thumbs,
+      fallbackBuilder: (_) =>
+          Icon(Icons.broken_image_outlined, size: 22, color: p.textDim),
+    );
+  }
+  return _originalThumb(item.path, cacheWidth, p);
+}
+
+Widget _originalThumb(String path, int cacheWidth, NslPalette p) => ColoredBox(
   color: p.track,
   child: Image.file(
     File(path),
@@ -744,6 +786,7 @@ Widget _thumb(String path, int cacheWidth, NslPalette p) => ColoredBox(
 class _Tile extends StatelessWidget {
   const _Tile({
     required this.item,
+    required this.thumbnails,
     required this.cacheWidth,
     required this.onTap,
     this.selecting = false,
@@ -751,6 +794,7 @@ class _Tile extends StatelessWidget {
   });
 
   final LibraryItem item;
+  final ThumbnailService thumbnails;
   final int cacheWidth;
   final VoidCallback onTap;
   final bool selecting;
@@ -771,7 +815,7 @@ class _Tile extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: _thumb(item.path, cacheWidth, p),
+                child: _thumb(item, cacheWidth, thumbnails, p),
               ),
               if (selected)
                 Positioned.fill(
@@ -811,19 +855,21 @@ class _AlbumCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.covers,
+    required this.thumbnails,
     required this.onTap,
   });
 
   final String title;
   final String subtitle;
   final List<LibraryItem> covers;
+  final ThumbnailService thumbnails;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final p = context.pal;
     Widget cell(int i) => i < covers.length
-        ? _thumb(covers[i].path, 360, p)
+        ? _thumb(covers[i], 360, thumbnails, p)
         : ColoredBox(color: p.track);
     return MouseRegion(
       cursor: SystemMouseCursors.click,

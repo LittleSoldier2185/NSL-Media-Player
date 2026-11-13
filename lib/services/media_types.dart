@@ -3,8 +3,18 @@ import 'dart:io';
 const audioExtensions = {'mp3', 'flac', 'wav', 'm4a', 'ogg', 'aac'};
 const videoExtensions = {'mp4', 'mkv', 'avi', 'mov', 'webm'};
 
-/// Pictures the app can show (more, like HEIC, are added with the photo viewer).
-const imageExtensions = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'};
+/// Pictures the app can show. HEIC/HEIF are converted to JPEG on the fly
+/// (see `HeicConverter`).
+const imageExtensions = {
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'gif',
+  'bmp',
+  'heic',
+  'heif',
+};
 const pdfExtensions = {'pdf'};
 
 /// What a file is. Only [audio] and [video] can be played; [image] and [pdf]

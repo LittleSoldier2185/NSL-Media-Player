@@ -8,6 +8,7 @@ import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'heic_converter.dart';
 import 'media_types.dart';
 
 /// Source of a full-size picture for a file (embedded cover, video frame...).
@@ -96,10 +97,12 @@ class ThumbnailService {
     Directory? dir,
     RawImageSource? videoFrame,
     RawImageSource? audioArt,
+    RawImageSource? image,
     Downscaler? downscale,
   }) : _dirOverride = dir,
        _videoFrame = videoFrame ?? defaultVideoFrame,
        _audioArt = audioArt ?? defaultAudioArt,
+       _image = image ?? defaultImage,
        _downscale = downscale ?? defaultDownscale;
 
   static const thumbWidth = 256;
@@ -108,6 +111,7 @@ class ThumbnailService {
   final Directory? _dirOverride;
   final RawImageSource _videoFrame;
   final RawImageSource _audioArt;
+  final RawImageSource _image;
   final Downscaler _downscale;
 
   // Music extraction is cheap and runs in isolates; video needs a decoder
@@ -190,6 +194,8 @@ class ThumbnailService {
     try {
       final raw = videoExtensions.contains(extensionOf(path))
           ? await _videoFrame(path)
+          : kindOf(path) == MediaKind.image
+          ? await _image(path)
           : await _audioArt(path);
       if (raw != null && raw.isNotEmpty) thumb = await _downscale(raw);
     } on Object catch (e) {
@@ -276,6 +282,13 @@ class ThumbnailService {
       // no readable tags: fall back to folder art
     }
     return folderArt(path);
+  }
+
+  /// The picture file itself (HEIC is converted to JPEG first). The decoder
+  /// shrinks it while decoding, so a big photo is not held in memory whole.
+  static Future<Uint8List?> defaultImage(String path) async {
+    final readable = await HeicConverter.instance.viewable(path);
+    return readable == null ? null : File(readable).readAsBytes();
   }
 
   /// A `cover` / `folder` / `front` / `album` picture beside [path], if any.

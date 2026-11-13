@@ -45,6 +45,7 @@ dependencies:
   smtc_windows: ^1.1.0
   flutter_acrylic: ^1.1.4
   exif: ^3.3.0
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:

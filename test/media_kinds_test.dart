@@ -102,6 +102,10 @@ void main() {
       }
       expect(lib.imageCount, 2);
       expect(lib.bookCount, 1);
+      // Let the scan (and the picture comparison after it) finish.
+      for (var i = 0; i < 100 && (lib.scanning || lib.hashing); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
       // Done once: a second start does not scan again.
       final again = await make(autoRescan: true);
       expect(again.scanning, isFalse);

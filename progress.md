@@ -1,7 +1,7 @@
 # NSL Resonance — Progress
 
-Last updated: 2026-11-12
-Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-c done (11d ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
+Last updated: 2026-11-13
+Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 10 done, Phase 11a-d done (Phase 12 PDF ต่อ) (Phase 6 พักไว้, Phase 8 ค้าง, Milestone 7 ไว้ทีหลัง)
 
 บันทึกสิ่งที่ทำไปแล้ว (อ้างอิงแผนใน `Plan.md`)
 
@@ -72,7 +72,7 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] sidebar เพิ่ม Photos และ Books (หน้า placeholder `kind_pages.dart` แสดงจำนวนที่เจอ รอ Phase 11-12); ยังไม่ได้ปรับ Home (แท็บ Photos/Books) — ไปพร้อมหน้าจริง
 - [x] test เพิ่ม 5 ข้อ (`test/media_kinds_test.dart`) รวม 139 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน; ยังไม่ได้ลองกดหน้า Photos/Books จริง
 - หมายเหตุ: ไฟล์ HEIC/HEIF ยังไม่ถูกนับเป็นรูป (เพิ่มใน Phase 11 พร้อมตัวแปลง)
-### Phase 11: รูปภาพ (Photos, อัลบั้ม, ตัวดูรูป, HEIC, กันรูปซ้ำ) — [~] in progress (แบ่งเป็น 11a-11d)
+### Phase 11: รูปภาพ (Photos, อัลบั้ม, ตัวดูรูป, HEIC, กันรูปซ้ำ) — [x] done (11a-11d, 2026-11-13)
 - [x] **11a (2026-11-12)** หน้า Photos แบบไทม์ไลน์ + ตัวดูรูป: `lib/ui/photos_view.dart` (จัดกลุ่มตามวันที่ถ่าย Today/Yesterday/วันที่, ปรับขนาดช่อง, ค้นหาชื่อ, ปุ่ม Add folder), `lib/ui/photo_viewer.dart` (ซูมด้วยล้อ/ลาก, ดับเบิลคลิกซูม, ลูกศร/Home/End/Esc, หมุนดู, แผงรายละเอียด I, แถบรูปย่อ, Show in folder, โหลดรูปข้างเคียงล่วงหน้า); อ่านวันที่ถ่ายจาก EXIF ตอนสแกน (`exif ^3.3.0`, อ่านแค่ 128 KB แรก, เก็บในดัชนีคีย์ `k`) ไม่มี EXIF ใช้วันที่แก้ไขไฟล์; รูปย่อใช้ `Image.file(cacheWidth)` (ยังไม่มีแคช PNG บนดิสก์)
   - test 13 ข้อ (`test/photos_test.dart`: วันที่ EXIF จากไฟล์ JPEG ที่สร้างขึ้น, จัดกลุ่ม, หน้า Photos, ตัวดู) รวม 152 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
   - ยังไม่ได้ลองกับรูปจริงของผู้ใช้/จำนวนมาก (ความเร็วเลื่อน, การกินแรม) และไม่ได้ลองกดตัวดูจริง → Phase 8
@@ -88,7 +88,12 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
   - เปิดไฟล์ (Open file/ลากวาง) ตอนอยู่หน้า Photos/Books จะเล่นเป็นพื้นหลังแทนที่จะเด้งไปหน้า Player; ปิดได้ที่ Settings > Playback > "Keep browsing when a file opens" (เปิดเป็นค่าเริ่มต้น); เล่นจาก Library/Home/History ยังไปหน้า Player ตามเดิม
   - test เพิ่ม 7 ข้อ (`test/hub_audio_test.dart`) รวม 168 ผ่าน, analyze ไม่มี error/warning, build release + เปิดแอปผ่าน
   - **ยังไม่ได้เห็นแถบนี้จริง**: เทสต์สร้าง `NslPlayerController` ไม่ได้ (ต้องมี libmpv) จึงไม่มี widget test ของแถบ และไม่ได้ลองกดจริง → Phase 8: เปิดเพลงแล้วไปหน้า Photos (แถบขึ้นไหม, ปุ่มทำงานไหม), เปิดวิดีโอแล้วออกไปหน้า Library (เสียงต่อไหม, กลับมาภาพคืนไหม), กด Show picture, เปิดตัวดูรูปตอนเพลงเล่น
-- [ ] 11d HEIC (แปลงเป็น JPEG) + กันรูปซ้ำด้วย hash + แคชรูปย่อบนดิสก์ ถ้าจำเป็น
+- [x] **11d (2026-11-13)** HEIC + duplicate pictures + thumbnail cache:
+  - **HEIC/HEIF** are now pictures (`imageExtensions`). Flutter cannot decode them, so `lib/services/heic_converter.dart` converts to JPEG with the decoder Windows already has (PowerShell + WPF `BitmapDecoder`; needs the Store's "HEIF Image Extensions"), cached in `%APPDATA%\NSL Media Player\heic` keyed like thumbnails; one conversion at a time; the original is never touched. The viewer shows a spinner while converting and a hint if it fails; thumbnails of HEIC use the same converter.
+  - **Thumbnail cache for pictures**: the Photos grid uses `ThumbnailService` (256 px PNG on disk + memory) for tiles up to ~300 px; bigger tiles and folder/album covers still decode the original; the viewer's thumbnail strip uses the cache too.
+  - **Duplicates**: pictures keep their file size (`z`) in the index; only pictures sharing a size with another are SHA-1 hashed (`h`; `crypto` is now a direct dependency), in the background after a scan and from saved hashes on start. The oldest copy (by date taken) is kept; the extra copies are hidden on the timeline by default, with a "Hiding N duplicates" toggle in the header. Nothing is ever deleted. `libraryKindsVersion` is now 3, so an old index is rescanned once to get sizes.
+  - tests +9 (`test/heic_duplicates_test.dart`: converter cache / failure / missing file using a fake converter; duplicate detection, keep-oldest, index round-trip, unreadable file); 177 pass, analyze has no errors/warnings, release build OK; the WPF conversion script was checked with a real file (icon to valid JPEG).
+  - **Not verified on a real HEIC file** (none on this machine): that the Windows HEIF codec decodes it (some HEIC also need the "HEVC Video Extensions"), that it comes out the right way up (EXIF rotation may not carry over), and that the EXIF date is read from HEIC. Also not tried: scrolling a big photo folder with the thumbnail cache → Phase 8.
 ### Phase 12: ebook PDF (ชั้นหนังสือ, ตัวอ่าน, resume, bookmark, ค้นหา) — [ ] not started
 ### Phase 12.5: Private mode (โหมดส่วนตัว ขอรหัสเข้า) — [ ] ร่างแผนแล้ว รอผู้ใช้ยืนยัน
 - [ ] ดูรายละเอียดใน Plan.md (Milestone 6); ล็อกระดับแอปเท่านั้น ไม่เข้ารหัสไฟล์; ซ่อนจากทุกหน้า/ประวัติ/แคช/SMTC ตอนล็อก; ผลต่อ Hub ระบุไว้ใน Milestone 7

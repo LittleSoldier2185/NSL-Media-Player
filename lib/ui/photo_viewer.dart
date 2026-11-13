@@ -8,10 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/legacy.dart';
 
 import '../player_controller/player_controller.dart';
+import '../services/heic_converter.dart';
 import '../services/library_service.dart';
 import '../services/thumbnail_service.dart';
 import '../services/playlist_service.dart';
 import 'now_playing_dock.dart';
+import 'library_thumb.dart';
 import 'photo_common.dart';
 import 'theme.dart';
 import 'title_bar.dart';
@@ -59,6 +61,11 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   int _turns = 0; // quarter turns, for looking only (the file is not changed)
   Size? _pixels; // size of the picture in pixels, once loaded
 
+  /// A file Flutter can decode for the current picture: its own path, or the
+  /// JPEG made from a HEIC. Null while that is being made (or if it failed).
+  String? _shown;
+  bool _failed = false;
+
   // Slideshow and fullscreen.
   Timer? _timer;
   bool _playing = false;
@@ -72,7 +79,7 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   @override
   void initState() {
     super.initState();
-    _loadSize();
+    _prepare();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerStrip(false);
       if (widget.slideshow) _startSlideshow();
@@ -89,10 +96,28 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
     super.dispose();
   }
 
+  /// Gets the current picture ready to show (HEIC is converted first).
+  Future<void> _prepare() async {
+    final item = _item;
+    _failed = false;
+    _shown = HeicConverter.instance.cachedPath(item.path);
+    if (_shown == null) {
+      final v = await HeicConverter.instance.viewable(item.path);
+      if (!mounted || _item.path != item.path) return;
+      setState(() {
+        _shown = v;
+        _failed = v == null;
+      });
+    }
+    _loadSize();
+  }
+
   void _loadSize() {
     final path = _item.path;
+    final shown = _shown;
     _pixels = null;
-    final stream = FileImage(File(path)).resolve(ImageConfiguration.empty);
+    if (shown == null) return;
+    final stream = FileImage(File(shown)).resolve(ImageConfiguration.empty);
     late ImageStreamListener l;
     l = ImageStreamListener((info, _) {
       if (mounted && path == _item.path) {
@@ -153,12 +178,13 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
       _zoom.value = Matrix4.identity();
       _turns = 0;
     });
-    _loadSize();
+    _prepare();
     _centerStrip(true);
     // Have the neighbours ready so the next click is instant.
     for (final k in [n - 1, n + 1]) {
       if (k >= 0 && k < widget.items.length) {
-        precacheImage(FileImage(File(widget.items[k].path)), context);
+        final next = HeicConverter.instance.cachedPath(widget.items[k].path);
+        if (next != null) precacheImage(FileImage(File(next)), context);
       }
     }
   }
@@ -329,9 +355,13 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
               child: Center(
                 child: RotatedBox(
                   quarterTurns: _turns,
-                  child: Image.file(
-                    File(_item.path),
-                    key: ValueKey(_item.path),
+                  child: _shown == null
+                      ? (_failed
+                            ? const _CannotShow()
+                            : const CircularProgressIndicator())
+                      : Image.file(
+                    File(_shown!),
+                    key: ValueKey(_shown),
                     fit: BoxFit.contain,
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) => const Icon(
@@ -514,14 +544,24 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
                         : null,
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: Image.file(
-                    File(widget.items[i].path),
-                    fit: BoxFit.cover,
-                    cacheWidth: 168,
-                    filterQuality: FilterQuality.low,
-                    errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: Color(0xFF1B1D23)),
-                  ),
+                  child: widget.thumbnails != null
+                      ? PathThumb(
+                          path: widget.items[i].path,
+                          modified: widget.items[i].modified == 0
+                              ? null
+                              : widget.items[i].modified,
+                          thumbnails: widget.thumbnails!,
+                          fallbackBuilder: (_) =>
+                              const ColoredBox(color: Color(0xFF1B1D23)),
+                        )
+                      : Image.file(
+                          File(widget.items[i].path),
+                          fit: BoxFit.cover,
+                          cacheWidth: 168,
+                          filterQuality: FilterQuality.low,
+                          errorBuilder: (_, _, _) =>
+                              const ColoredBox(color: Color(0xFF1B1D23)),
+                        ),
                 ),
               ),
             ),
@@ -617,4 +657,26 @@ class _PhotoViewerPageState extends State<PhotoViewerPage> {
   }
 
   static String fileName(String path) => path.split(RegExp(r'[\\/]')).last;
+}
+
+/// Shown instead of a HEIC picture that could not be converted.
+class _CannotShow extends StatelessWidget {
+  const _CannotShow();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.all(24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.broken_image_outlined, size: 64, color: Colors.white38),
+        SizedBox(height: 12),
+        Text(
+          "Can't open this picture. For HEIC, install \"HEIF Image Extensions\" from the Microsoft Store.",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white60),
+        ),
+      ],
+    ),
+  );
 }
