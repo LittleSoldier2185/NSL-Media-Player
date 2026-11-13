@@ -128,6 +128,8 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 - [x] test เพิ่ม 10 ข้อ (`test/file_locator_test.dart` 8 ข้อ: อาร์กิวเมนต์ `/select,` ตัวเดียวทั้งที่มีช่องว่าง, ไฟล์หาย/โฟลเดอร์หาย, copy path/file ทุกกรณี; `test/file_menu_test.dart` 2 ข้อ) รวม 233 ผ่าน, analyze ไม่มี error/warning, build release ผ่าน
 - **ยังไม่ได้ลองบนเครื่องจริง**: Explorer เปิดและเลือกไฟล์จริงไหม (โดยเฉพาะ path ที่มีช่องว่าง/ภาษาไทย), Copy file แล้ววางในแชต/Explorer ได้ไหม, คลิกขวาในไฟล์ Private → Phase 8
 - ไม่ได้ทำ: คลิกขวาในแถว Library/History (ใช้เมนู ⋮), ปุ่ม Share ของ Windows, เมนูใน Playlists/Queue/Home/mini player
+### Phase 12.8: โหมดดู PDF (Scroll / Single page / Two-page spread + Fit + จำต่อเล่ม) — [~] in progress
+- [ ] โหมด Scroll/Single/Spread (+ตัวเลือกหน้าปกเดี่ยว), Fit width/page/actual, เปลี่ยนหน้าด้วยคีย์/ล้อเมาส์, จำต่อเล่มใน `books.json`, test
 ### Phase 13: EPUB — [ ] พักไว้ (ON HOLD) ไม่ทำจนกว่าผู้ใช้เรียก
 
 ### Milestone 7: Android + Hub (เพิ่ม 2026-11-12 — รอผู้ใช้ยืนยันลำดับก่อนเริ่ม; เลขเฟสเลื่อนหลังเพิ่ม Milestone 6)
@@ -229,3 +231,4 @@ Overall status: Phase 1-5, 9 done, Phase 7 ทำเฉพาะ acrylic, Phase 
 2. **Milestone 3** — installer (Inno Setup) + registry เพื่อให้เป็น Default app ได้ (ตอนนี้การ์ด Default player จะแสดง 0 ไฟล์จนกว่าจะมี installer)
 3. **Milestone 4** — สแกนโฟลเดอร์ library, อ่าน metadata/ปกอัลบั้ม, ค้นหาและจัดเรียง
 4. **Milestone 5** — ซับไตเติล, SMTC/media keys, ตั้งปุ่มลัดเองได้, หมวดที่ตัดออกจาก Settings (ภาษา, click-through, โฟลเดอร์ Library)
+- 2026-11-13: ผู้ใช้ถามไอเดีย View mode ของ PDF แล้วเลือกชุด Single page / Two-page spread / Fit mode / จำโหมดต่อเล่ม → Phase 12.8 (Should); ข้อที่เหลือ (เลื่อนแนวนอน, RTL, crop, สีเซเปีย, Presentation) ไว้ทีหลัง
