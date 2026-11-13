@@ -28,19 +28,19 @@ void main() {
     );
   }
 
-  test('Show in folder passes ONE /select argument, spaces intact', () async {
+  test('Show in folder passes /select, and the path as separate args', () async {
     final l = make();
     final r = await l.showInFolder(r'C:\My Music\Album One\song a.mp3');
     expect(r.ok, isTrue);
     expect(explorerCalls, [
-      [r'/select,C:\My Music\Album One\song a.mp3'],
+      ['/select,', r'C:\My Music\Album One\song a.mp3'],
     ]);
   });
 
   test('forward slashes are turned into backslashes for Explorer', () async {
     final l = make();
     await l.showInFolder('C:/Music/a.mp3');
-    expect(explorerCalls.single.single, r'/select,C:\Music\a.mp3');
+    expect(explorerCalls.single, ['/select,', r'C:\Music\a.mp3']);
   });
 
   test('a missing file opens its folder and says so', () async {

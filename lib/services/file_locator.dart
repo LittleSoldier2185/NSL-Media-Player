@@ -57,9 +57,11 @@ class FileLocator {
   Future<LocateResult> showInFolder(String path) async {
     final native = _native(path);
     if (_fileExists(native)) {
-      // One argument: `/select,C:\a b\c.mp3`. Giving the path as a separate
-      // argument makes Explorer ignore the selection.
-      await _explorer(['/select,$native']);
+      // Two arguments: Dart quotes only the path (`/select, "C:\a b\c.mp3"`),
+      // which Explorer understands. Gluing them into one argument gets the
+      // whole thing quoted when the path has spaces, and Explorer then opens
+      // Documents instead.
+      await _explorer(['/select,', native]);
       return const LocateResult(true, 'Showing it in File Explorer.');
     }
     final dir = parentOf(native);
