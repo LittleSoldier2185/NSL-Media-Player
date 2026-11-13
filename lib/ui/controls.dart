@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../player_controller/player_controller.dart';
+import 'file_menu.dart';
 import 'quick_settings.dart';
 import 'theme.dart';
 
@@ -167,6 +168,25 @@ class ControlsBar extends StatelessWidget {
                               Icons.picture_in_picture_alt,
                               onMini,
                               tooltip: 'Mini player (Ctrl+M)',
+                            ),
+                            ListenableBuilder(
+                              listenable: controller,
+                              builder: (context, _) {
+                                final path = controller.currentPath;
+                                return PopupMenuButton<String>(
+                                  tooltip: 'Show in folder, copy path or file',
+                                  enabled: path != null,
+                                  padding: EdgeInsets.zero,
+                                  icon: Icon(
+                                    Icons.drive_file_move_outlined,
+                                    color: context.pal.icon,
+                                  ),
+                                  onSelected: (v) =>
+                                      runFileCommand(context, v, path!),
+                                  itemBuilder: (_) =>
+                                      fileMenuItems(divider: false),
+                                );
+                              },
                             ),
                             IconBtn(
                               Icons.folder_open,
